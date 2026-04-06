@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title> Traces d'apprentissage </title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Sora:wght@400;600;700&display=swap');
+
+  :root {
+    --math-primary: #1a56c4;
+    --math-light: #dbeafe;
+    --math-accent: #3b82f6;
+    --fr-primary: #be185d;
+    --fr-light: #fce7f3;
+    --fr-accent: #ec4899;
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f3f2ef;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e3de;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-hover: 0 8px 32px rgba(0,0,0,0.14);
+    --radius: 18px;
+    --radius-sm: 10px;
+    --active-primary: var(--math-primary);
+    --active-light: var(--math-light);
+    --active-accent: var(--math-accent);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  }
+
+  .logo {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--active-primary); transition: color 0.3s; }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .tab-btn {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 8px 22px;
+    border-radius: 50px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+  }
+
+  .tab-btn.math.active {
+    background: var(--math-light);
+    color: var(--math-primary);
+    border-color: var(--math-primary);
+  }
+  .tab-btn.fr.active {
+    background: var(--fr-light);
+    color: var(--fr-primary);
+    border-color: var(--fr-primary);
+  }
+  .tab-btn:not(.active):hover { background: var(--border); color: var(--text); }
+
+  /* ── MAIN LAYOUT ── */
+  .app-body {
+    display: flex;
+    height: calc(100vh - 64px);
+    height: calc(-webkit-fill-available - 64px);
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 8px 8px;
+  }
+
+  .cat-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+    width: 100%;
+    text-align: left;
+    transition: all 0.18s;
+  }
+
+  .cat-btn:hover { background: var(--surface2); }
+  .cat-btn.active {
+    background: var(--active-light);
+    color: var(--active-primary);
+  }
+
+  .cat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: var(--surface2);
+    flex-shrink: 0;
+    transition: background 0.18s;
+  }
+  .cat-btn.active .cat-icon { background: var(--active-primary); }
+
+  .cat-arrow {
+    margin-left: auto;
+    font-size: 12px;
+    opacity: 0.4;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .cat-btn.active .cat-arrow { transform: rotate(90deg); opacity: 0.8; }
+
+  /* Sub-category */
+  .subcat-list {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 20px;
+    margin-bottom: 4px;
+  }
+  .subcat-list.open { display: flex; }
+
+  .subcat-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-muted);
+    width: 100%;
+    text-align: left;
+    transition: all 0.18s;
+  }
+  .subcat-btn:hover { background: var(--surface2); color: var(--text); }
+  .subcat-btn.active { background: var(--active-light); color: var(--active-primary); font-weight: 700; }
+  .subcat-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: 0.5; flex-shrink: 0;
+  }
+  .subcat-btn.active .subcat-dot { opacity: 1; }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .breadcrumb .sep { opacity: 0.4; }
+  .breadcrumb .current { color: var(--active-primary); }
+
+  /* Section title */
+  .section-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .section-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ── FICHE GRID ── */
+  .fiche-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .fiche-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .fiche-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--active-primary), var(--active-accent));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .fiche-card:hover { border-color: var(--active-primary); box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+  .fiche-card:hover::before { opacity: 1; }
+  .fiche-card.selected { border-color: var(--active-primary); background: var(--active-light); box-shadow: var(--shadow-hover); }
+  .fiche-card.selected::before { opacity: 1; }
+
+  .fiche-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: var(--active-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .fiche-name {
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .fiche-card.selected .fiche-name { color: var(--active-primary); }
+
+  .fiche-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .fiche-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--surface2);
+    color: var(--text-muted);
+    width: fit-content;
+  }
+  .fiche-card.selected .fiche-badge { background: var(--active-primary); color: white; }
+
+  /* ── GENERATION PANEL ── */
+  .gen-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .gen-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .gen-title .step-badge {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--active-primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--active-primary);
+    background: var(--active-light);
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-text { font-weight: 700; font-size: 15px; color: var(--text); }
+  .upload-hint { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  /* Preview */
+  .photo-preview {
+    display: none;
+    position: relative;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: #000;
+  }
+  .photo-preview img {
+    width: 100%;
+    max-height: 260px;
+    object-fit: contain;
+    display: block;
+  }
+  .photo-preview .remove-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .photo-preview .remove-btn:hover { background: rgba(200,0,0,0.8); }
+
+  /* Champs additionnels */
+  .fields-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .field-input {
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color 0.2s;
+    outline: none;
+    width: 100%;
+  }
+  .field-input:focus { border-color: var(--active-primary); }
+
+  /* Generate button */
+  .gen-btn {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    padding: 16px 28px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--active-primary), var(--active-accent));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+    letter-spacing: 0.2px;
+  }
+  .gen-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.22); }
+  .gen-btn:active { transform: translateY(0); }
+  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    color: var(--text-muted);
+    padding: 60px 20px;
+  }
+  .empty-icon { font-size: 56px; opacity: 0.4; }
+  .empty-title { font-size: 18px; font-weight: 700; color: var(--text); opacity: 0.5; }
+  .empty-hint { font-size: 14px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a2e;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 700;
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── MOBILE / IPAD responsive ── */
+  @media (max-width: 900px) {
+    .sidebar { width: 240px; min-width: 240px; }
+  }
+
+  @media (max-width: 700px) {
+    .app-body { flex-direction: column; height: auto; overflow: visible; }
+    .sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); padding: 12px; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; gap: 0; }
+    .sidebar-label { display: none; }
+    .cat-btn { flex-direction: column; align-items: center; padding: 10px 12px; gap: 4px; white-space: nowrap; font-size: 12px; min-width: 90px; }
+    .cat-icon { width: 30px; height: 30px; font-size: 15px; }
+    .cat-arrow { display: none; }
+    .subcat-list { display: none !important; }
+    .main-content { padding: 16px; }
+    .fields-row { grid-template-columns: 1fr; }
+  }
+
+  /* iPad portrait specific */
+  @media (min-width: 701px) and (max-width: 1024px) {
+    .sidebar { width: 220px; min-width: 220px; }
+    .fiche-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* Color switch pour Français */
+  body.tab-fr {
+    --active-primary: var(--fr-primary);
+    --active-light: var(--fr-light);
+    --active-accent: var(--fr-accent);
+  }
+  body.tab-math {
+    --active-primary: var(--math-primary);
+    --active-light: var(--math-light);
+    --active-accent: var(--math-accent);
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ══════════════════════════════════════════
+     LOGIN PORTAL
+  ══════════════════════════════════════════ */
+  #loginOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    overflow: hidden;
+  }
+  #loginOverlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(59,130,246,0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(190,24,93,0.12) 0%, transparent 50%),
+      radial-gradient(circle at 60% 20%, rgba(26,86,196,0.10) 0%, transparent 40%);
+    animation: bgShift 8s ease-in-out infinite alternate;
+  }
+  @keyframes bgShift {
+    0%   { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 1;   transform: scale(1.05); }
+  }
+  #loginOverlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .login-card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 28px;
+    padding: 48px 44px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+    animation: cardIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+    margin: 20px;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .login-logo { text-align: center; margin-bottom: 10px; }
+  .login-logo-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #1a56c4, #3b82f6);
+    font-size: 30px;
+    box-shadow: 0 8px 24px rgba(59,130,246,0.4);
+    margin-bottom: 16px;
+  }
+  .login-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
+  .login-subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    margin-bottom: 36px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .login-field { margin-bottom: 16px; }
+  .login-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+  }
+  .login-input-wrap { position: relative; }
+  .login-input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .login-input {
+    width: 100%;
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px 42px 13px 42px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07);
+    color: #ffffff;
+    outline: none;
+    transition: all 0.2s;
+    -webkit-appearance: none;
+  }
+  .login-input::placeholder { color: rgba(255,255,255,0.25); }
+  .login-input:focus {
+    border-color: rgba(59,130,246,0.7);
+    background: rgba(59,130,246,0.08);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  }
+  .toggle-pw {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.35);
+    font-size: 18px;
+    padding: 4px;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+  .toggle-pw:hover { color: rgba(255,255,255,0.7); }
+  .login-error {
+    display: none;
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fca5a5;
+    margin-bottom: 16px;
+    animation: shake 0.4s ease;
+    text-align: center;
+  }
+  .login-error.show { display: block; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+  }
+  .login-btn {
+    width: 100%;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 15px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #1a56c4, #3b82f6);
+    color: white;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 18px rgba(59,130,246,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(59,130,246,0.5); }
+  .login-btn:active { transform: translateY(0); }
+  .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .login-footer {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    font-weight: 600;
+  }
+  .login-footer span { color: rgba(255,255,255,0.35); }
+  .logout-btn {
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 50px;
+    border: 1.5px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    margin-left: 4px;
+  }
+  .logout-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+  .user-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface2);
+    border-radius: 50px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  @media (max-width: 700px) {
+    .login-card { padding: 36px 24px; }
+    .user-badge { display: none; }
+  }
+
+
+  /* ══ MODAL NOUVELLE FICHE ══ */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 8000;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+
+  .modal-box {
+    background: var(--surface);
+    border-radius: 24px;
+    border: 1.5px solid var(--border);
+    padding: 36px 32px 28px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+    animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .modal-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-title-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--active-light);
+    color: var(--active-primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .modal-close {
+    background: var(--surface2);
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: #fee2e2; color: #dc2626; }
+
+  .modal-field { margin-bottom: 14px; }
+  .modal-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 7px;
+  }
+  .modal-input, .modal-select, .modal-textarea {
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 13px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus, .modal-select:focus, .modal-textarea:focus {
+    border-color: var(--active-primary);
+  }
+  .modal-textarea { resize: vertical; min-height: 72px; }
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Emoji picker strip */
+  .emoji-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .emoji-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .emoji-btn:hover { border-color: var(--active-primary); background: var(--active-light); transform: scale(1.1); }
+  .emoji-btn.selected { border-color: var(--active-primary); background: var(--active-light); }
+
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .modal-cancel {
+    flex: 1;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .modal-cancel:hover { background: var(--border); color: var(--text); }
+  .modal-save {
+    flex: 2;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, var(--active-primary), var(--active-accent));
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .modal-save:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
+
+  /* Add fiche button card */
+  .fiche-card.add-card {
+    border: 2px dashed var(--border);
+    background: transparent;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    min-height: 160px;
+    color: var(--text-muted);
+  }
+  .fiche-card.add-card:hover {
+    border-color: var(--active-primary);
+    background: var(--active-light);
+    color: var(--active-primary);
+    transform: translateY(-2px);
+  }
+  .add-card-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    transition: background 0.2s;
+  }
+  .fiche-card.add-card:hover .add-card-icon {
+    background: var(--active-primary);
+  }
+  .add-card-label { font-weight: 800; font-size: 14px; }
+  .add-card-hint  { font-size: 12px; opacity: 0.7; }
+
+  /* Delete button on custom fiches */
+  .fiche-del-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(239,68,68,0.1);
+    border: none;
+    border-radius: 6px;
+    width: 24px; height: 24px;
+    font-size: 13px;
+    cursor: pointer;
+    display: none;
+    align-items: center; justify-content: center;
+    color: #ef4444;
+    transition: background 0.15s;
+  }
+  .fiche-card:hover .fiche-del-btn { display: flex; }
+  .fiche-del-btn:hover { background: rgba(239,68,68,0.25); }
+
+  @media (max-width: 700px) {
+    .modal-row { grid-template-columns: 1fr; }
+    .modal-box { padding: 28px 20px 22px; }
+  }
+
+</style>
+</head>
+<body class="tab-math">
+
+<!-- ══════════════════════════════════════════
+     LOGIN PORTAL OVERLAY
+══════════════════════════════════════════ -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">📚</div>
+    </div>
+    <div class="login-title">Fiches Objectifs</div>
+    <div class="login-subtitle">Accès réservé · Enseignants</div>
+
+    <div class="login-field">
+      <label for="loginUser">Identifiant</label>
+      <div class="login-input-wrap">
+        <span class="login-input-icon">👤</span>
+        <input class="login-input" type="text" id="loginUser"
+          placeholder="Votre identifiant"
+          autocomplete="username" autocapitalize="none" spellcheck="false" />
+      </div>
+    </div>
+
+    <div class="login-field">
+      <label for="loginPass">Mot de passe</label>
+      <div class="login-input-wrap">
+        <span class="login-input-icon">🔒</span>
+        <input class="login-input" type="password" id="loginPass"
+          placeholder="Votre mot de passe" autocomplete="current-password" />
+        <button class="toggle-pw" onclick="togglePassword()" id="togglePwBtn" title="Afficher / masquer" type="button">👁</button>
+      </div>
+    </div>
+
+    <div class="login-error" id="loginError">❌ Identifiant ou mot de passe incorrect.</div>
+
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <span>🔓</span> Se connecter
+    </button>
+
+    <div class="login-footer">
+      Accès sécurisé &nbsp;·&nbsp; <span>Traces d'apprentissage</span>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none">
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Fiches <span>Objectifs</span></div>
+  <div class="tab-bar">
+    <button class="tab-btn math active" onclick="switchTab('math')">📐 Maths</button>
+    <button class="tab-btn fr" onclick="switchTab('fr')">📖 Français</button>
+  </div>
+  <div class="user-badge" id="userBadge">👤 —</div>
+  <button class="logout-btn" onclick="doLogout()" title="Se déconnecter">🚪 Déconnexion</button>
+</header>
+
+<div class="app-body">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <main class="main-content" id="main"></main>
+</div>
+
+
+<!-- MODAL NOUVELLE FICHE -->
+<div class="modal-backdrop" id="ficheModal" onclick="modalBackdropClick(event)">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <div class="modal-title">
+        <div class="modal-title-icon" id="modalIconPreview">✨</div>
+        Nouvelle fiche objectif
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-label">Icône</label>
+      <div class="emoji-strip" id="emojiStrip"></div>
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-label">Nom de la fiche *</label>
+      <input class="modal-input" id="mName" type="text" placeholder="ex : Les nombres décimaux" maxlength="60" />
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-label">Description courte *</label>
+      <input class="modal-input" id="mDesc" type="text" placeholder="ex : Reconnaître et comparer des décimaux" maxlength="90" />
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-label">Compétence visée *</label>
+      <input class="modal-input" id="mComp" type="text" placeholder="ex : Lire et écrire les nombres décimaux" maxlength="100" />
+    </div>
+
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Matière</label>
+        <select class="modal-select" id="mTab">
+          <option value="math">📐 Maths</option>
+          <option value="fr">📖 Français</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Catégorie</label>
+        <select class="modal-select" id="mSubcat"></select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal()">Annuler</button>
+      <button class="modal-save" onclick="saveFiche()">✅ Ajouter la fiche</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#appRoot -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">✅ PDF généré avec succès !</div>
+
+<script>
+
+// ══════════════════════════════════════════
+//  AUTHENTIFICATION
+//  Modifiez ci-dessous la liste des utilisateurs autorisés
+// ══════════════════════════════════════════
+const USERS = [
+  { login: 'Daniela', password: 'Libellule', displayName: 'Daniela' },
+  { login: 'Carole',  password: 'Papillon',  displayName: 'Carole'  },
+];
+
+let currentUser = null;
+
+function doLogin() {
+  const login    = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errorEl  = document.getElementById('loginError');
+  const btn      = document.getElementById('loginBtn');
+
+  errorEl.classList.remove('show');
+
+  const user = USERS.find(u => u.login === login && u.password === password);
+
+  if (user) {
+    currentUser = user;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Connexion…';
+    setTimeout(() => {
+      const overlay = document.getElementById('loginOverlay');
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        document.getElementById('appRoot').style.display = 'block';
+        document.getElementById('userBadge').textContent = '👤 ' + user.displayName;
+        render();
+      }, 400);
+    }, 600);
+  } else {
+    errorEl.classList.remove('show');
+    void errorEl.offsetWidth;
+    errorEl.classList.add('show');
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').classList.remove('show');
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔓</span> Se connecter';
+  document.getElementById('appRoot').style.display = 'none';
+  const overlay = document.getElementById('loginOverlay');
+  overlay.style.opacity = '0';
+  overlay.style.display = 'flex';
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.3s ease';
+    overlay.style.opacity = '1';
+  }, 10);
+}
+
+function togglePassword() {
+  const input = document.getElementById('loginPass');
+  const btn   = document.getElementById('togglePwBtn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('loginOverlay').style.display !== 'none') {
+    doLogin();
+  }
+});
+
+const { jsPDF } = window.jspdf;
+
+// ── DATA ──
+const DATA = {
+  math: {
+    label: 'Maths',
+    icon: '📐',
+    color: '#1a56c4',
+    subcategories: {
+      numeration: {
+        label: 'Numération',
+        icon: '🔢',
+        fiches: [
+          { id: 'n1', name: 'Lire et écrire les nombres', icon: '🔢', desc: 'Reconnaissance et écriture des nombres jusqu\'à 1000', competence: 'Lire, écrire, représenter des nombres' },
+          { id: 'n2', name: 'Comparer et ranger', icon: '⚖️', desc: 'Comparer des nombres entiers et les ranger dans l\'ordre', competence: 'Comparer, ranger, encadrer des nombres' },
+          { id: 'n3', name: 'La valeur des chiffres', icon: '🏛️', desc: 'Unités, dizaines, centaines, milliers', competence: 'Comprendre la valeur positionnelle' },
+          { id: 'n4', name: 'Additions et soustractions', icon: '➕', desc: 'Calcul posé d\'addition et soustraction', competence: 'Calculer avec les nombres entiers' },
+          { id: 'n5', name: 'Multiplications', icon: '✖️', desc: 'Tables de multiplication et calcul posé', competence: 'Mémoriser et utiliser les tables' },
+          { id: 'n6', name: 'Fractions simples', icon: '½', desc: 'Introduction aux fractions', competence: 'Représenter des fractions simples' },
+        ]
+      },
+      espaces: {
+        label: 'Espaces et géométrie',
+        icon: '📐',
+        fiches: [
+          { id: 'g1', name: 'Les figures planes', icon: '🔷', desc: 'Reconnaître et nommer carré, rectangle, triangle, cercle', competence: 'Reconnaître et décrire des figures' },
+          { id: 'g2', name: 'Les solides', icon: '🧊', desc: 'Cube, sphère, pyramide, cylindre', competence: 'Identifier des solides usuels' },
+          { id: 'g3', name: 'Symétrie axiale', icon: '🪞', desc: 'Trouver l\'axe de symétrie d\'une figure', competence: 'Reproduire une figure par symétrie' },
+          { id: 'g4', name: 'Périmètre et aire', icon: '📏', desc: 'Calculer périmètre et aire de figures simples', competence: 'Calculer des grandeurs géométriques' },
+          { id: 'g5', name: 'Se repérer dans l\'espace', icon: '🗺️', desc: 'Utiliser un quadrillage, des coordonnées', competence: 'Se repérer et se déplacer dans le plan' },
+        ]
+      }
+    }
+  },
+  fr: {
+    label: 'Français',
+    icon: '📖',
+    color: '#be185d',
+    subcategories: {
+      ecrit: {
+        label: 'Produire un écrit',
+        icon: '✏️',
+        fiches: [
+          { id: 'e1', name: 'Écrire un récit', icon: '📝', desc: 'Rédiger un texte narratif avec début, milieu et fin', competence: 'Écrire un texte narratif cohérent' },
+          { id: 'e2', name: 'Écrire une lettre', icon: '✉️', desc: 'Respecter la structure d\'une lettre formelle ou amicale', competence: 'Produire un écrit fonctionnel' },
+          { id: 'e3', name: 'Description d\'image', icon: '🖼️', desc: 'Observer et décrire une image avec précision', competence: 'Décrire et commenter une image' },
+          { id: 'e4', name: 'Le texte explicatif', icon: '💡', desc: 'Organiser et rédiger un texte explicatif', competence: 'Produire un texte informatif structuré' },
+          { id: 'e5', name: 'Orthographe lexicale', icon: '🔤', desc: 'Écrire correctement les mots courants', competence: 'Maîtriser l\'orthographe usuelle' },
+        ]
+      },
+      oral: {
+        label: 'Produire un oral',
+        icon: '🎙️',
+        fiches: [
+          { id: 'o1', name: 'Raconter à voix haute', icon: '🗣️', desc: 'Narrer un événement ou une histoire devant la classe', competence: 'Prendre la parole de manière organisée' },
+          { id: 'o2', name: 'Décrire un document', icon: '🖼️', desc: 'Présenter et commenter un document visuel à l\'oral', competence: 'Commenter oralement un document' },
+          { id: 'o3', name: 'Exprimer un avis', icon: '💬', desc: 'Formuler et défendre son opinion clairement', competence: 'Argumenter et débattre' },
+          { id: 'o4', name: 'Lire à voix haute', icon: '📖', desc: 'Lire un texte avec fluidité, intonation et expression', competence: 'Lire couramment à voix haute' },
+        ]
+      }
+    }
+  }
+};
+
+// ── STATE ──
+let state = {
+  tab: 'math',
+  openCat: 'numeration',
+  selectedSubcat: 'numeration',
+  selectedFiche: null,
+  photoDataUrl: null,
+  eleve: '',
+  date: new Date().toLocaleDateString('fr-FR'),
+};
+
+// ── RENDER ──
+function render() {
+  renderSidebar();
+  renderMain();
+}
+
+function renderSidebar() {
+  const tab = DATA[state.tab];
+  let html = `<div class="sidebar-label">Catégories</div>`;
+  for (const [key, cat] of Object.entries(tab.subcategories)) {
+    const isOpen = state.openCat === key;
+    const isActiveSub = state.selectedSubcat === key;
+    html += `
+      <button class="cat-btn ${isOpen ? 'active' : ''}" onclick="toggleCat('${key}')">
+        <div class="cat-icon">${cat.icon}</div>
+        ${cat.label}
+        <span class="cat-arrow">▶</span>
+      </button>
+      <div class="subcat-list ${isOpen ? 'open' : ''}">
+        <button class="subcat-btn ${isActiveSub ? 'active' : ''}" onclick="selectSubcat('${key}')">
+          <span class="subcat-dot"></span> Toutes les fiches
+        </button>
+      </div>
+    `;
+  }
+  document.getElementById('sidebar').innerHTML = html;
+}
+
+function renderMain() {
+  const tab = DATA[state.tab];
+  const subcat = tab.subcategories[state.selectedSubcat];
+  let html = '';
+
+  // Breadcrumb
+  html += `<div class="breadcrumb">
+    <span>${tab.label}</span>
+    <span class="sep">›</span>
+    <span class="current">${subcat.label}</span>
+  </div>`;
+
+  // Title
+  html += `<div>
+    <div class="section-title">${subcat.icon} ${subcat.label}</div>
+    <div class="section-subtitle">Choisissez une fiche objectif pour générer votre document PDF</div>
+  </div>`;
+
+  // Fiche grid
+  html += `<div class="fiche-grid">`;
+  for (const fiche of subcat.fiches) {
+    const sel = state.selectedFiche?.id === fiche.id;
+    const delBtn = fiche.custom
+      ? `<button class="fiche-del-btn" onclick="deleteFiche('${state.tab}','${state.selectedSubcat}','${fiche.id}',event)" title="Supprimer">🗑</button>`
+      : '';
+    html += `
+      <div class="fiche-card ${sel ? 'selected' : ''}" onclick="selectFiche('${state.selectedSubcat}','${fiche.id}')">
+        ${delBtn}
+        <div class="fiche-icon">${fiche.icon}</div>
+        <div class="fiche-name">${fiche.name}</div>
+        <div class="fiche-desc">${fiche.desc}</div>
+        <div class="fiche-badge">${sel ? '✓ Sélectionnée' : fiche.custom ? '⭐ Personnalisée' : 'Fiche objectif'}</div>
+      </div>
+    `;
+  }
+  // Add-fiche card
+  html += `
+    <div class="fiche-card add-card" onclick="openModal()">
+      <div class="add-card-icon">➕</div>
+      <div class="add-card-label">Nouvelle fiche</div>
+      <div class="add-card-hint">Ajouter un objectif personnalisé</div>
+    </div>
+  `;
+  html += `</div>`;
+
+  // Generation panel
+  if (state.selectedFiche) {
+    html += `
+    <div class="gen-panel">
+      <div class="gen-title">
+        <span class="step-badge">4</span>
+        Ajouter une photo de l'élève ou du travail
+      </div>
+
+      <div class="upload-zone ${state.photoDataUrl ? 'has-photo' : ''}" id="uploadZone"
+        ondragover="event.preventDefault(); this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handleDrop(event)">
+        <input type="file" accept="image/*" onchange="handleFile(this.files[0])" id="fileInput" />
+        ${!state.photoDataUrl ? `
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Toucher pour choisir une photo</div>
+          <div class="upload-hint">PNG, JPG, HEIC — ou glisser-déposer</div>
+        ` : ''}
+      </div>
+
+      ${state.photoDataUrl ? `
+      <div class="photo-preview" id="photoPreview" style="display:block">
+        <img src="${state.photoDataUrl}" alt="Aperçu" />
+        <button class="remove-btn" onclick="removePhoto()">✕</button>
+      </div>` : ''}
+
+      <div class="fields-row">
+        <div class="field-group">
+          <label class="field-label">Nom de l'élève</label>
+          <input class="field-input" type="text" placeholder="ex : Marie Dupont" value="${state.eleve}"
+            oninput="state.eleve = this.value" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Date</label>
+          <input class="field-input" type="text" placeholder="JJ/MM/AAAA" value="${state.date}"
+            oninput="state.date = this.value" />
+        </div>
+      </div>
+
+      <button class="gen-btn" onclick="generatePDF()" id="genBtn" ${!state.photoDataUrl ? 'disabled' : ''}>
+        <span>📄</span> Générer le PDF
+      </button>
+      ${!state.photoDataUrl ? `<div style="font-size:13px;color:var(--text-muted);text-align:center;">Ajoutez une photo pour activer la génération</div>` : ''}
+    </div>`;
+  } else {
+    html += `<div class="empty-state">
+      <div class="empty-icon">${tab.icon}</div>
+      <div class="empty-title">Choisissez une fiche objectif ci-dessus</div>
+      <div class="empty-hint">Sélectionnez une fiche, ajoutez une photo et générez votre PDF en quelques secondes.</div>
+    </div>`;
+  }
+
+  document.getElementById('main').innerHTML = html;
+}
+
+// ── ACTIONS ──
+function switchTab(tab) {
+  state.tab = tab;
+  state.selectedFiche = null;
+  state.photoDataUrl = null;
+  const cats = Object.keys(DATA[tab].subcategories);
+  state.openCat = cats[0];
+  state.selectedSubcat = cats[0];
+  document.body.className = `tab-${tab}`;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tab-btn.${tab}`).classList.add('active');
+  render();
+}
+
+function toggleCat(key) {
+  if (state.openCat === key) return;
+  state.openCat = key;
+  state.selectedSubcat = key;
+  state.selectedFiche = null;
+  render();
+}
+
+function selectSubcat(key) {
+  state.selectedSubcat = key;
+  state.openCat = key;
+  state.selectedFiche = null;
+  render();
+}
+
+function selectFiche(subcatKey, ficheId) {
+  const fiche = DATA[state.tab].subcategories[subcatKey].fiches.find(f => f.id === ficheId);
+  state.selectedFiche = fiche;
+  render();
+  // scroll to gen panel
+  setTimeout(() => {
+    const panel = document.querySelector('.gen-panel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 60);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.photoDataUrl = e.target.result;
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone')?.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+}
+
+function removePhoto() {
+  state.photoDataUrl = null;
+  render();
+}
+
+function showToast(msg, emoji = '✅') {
+  const t = document.getElementById('toast');
+  t.innerHTML = `${emoji} ${msg}`;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── PDF GENERATION ──
+async function generatePDF() {
+  const btn = document.getElementById('genBtn');
+  if (!btn || !state.selectedFiche || !state.photoDataUrl) return;
+
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> Génération en cours…`;
+
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    const tab = DATA[state.tab];
+    const subcat = tab.subcategories[state.selectedSubcat];
+    const fiche = state.selectedFiche;
+    const primaryColor = state.tab === 'math' ? [26, 86, 196] : [190, 24, 93];
+    const lightColor = state.tab === 'math' ? [219, 234, 254] : [252, 231, 243];
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297;
+    const margin = 16;
+
+    // ── Background ──
+    doc.setFillColor(248, 247, 244);
+    doc.rect(0, 0, W, H, 'F');
+
+    // ── Top bar ──
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, W, 28, 'F');
+
+    // ── Header text ──
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('FICHE OBJECTIF', margin, 17);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${tab.label.toUpperCase()} · ${subcat.label.toUpperCase()}`, margin, 24);
+
+    // Discipline badge (right)
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(W - 52, 6, 36, 16, 4, 4, 'F');
+    doc.setTextColor(...primaryColor);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(tab.label, W - 34, 16.5, { align: 'center' });
+
+    // ── Fiche name block ──
+    let y = 38;
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin, y, W - margin*2, 22, 4, 4, 'F');
+    doc.setTextColor(...primaryColor);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    const ficheName = fiche.icon + '  ' + fiche.name;
+    doc.text(ficheName, margin + 6, y + 9);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    doc.text(fiche.desc, margin + 6, y + 17);
+
+    // ── Competence ──
+    y += 28;
+    doc.setFillColor(...lightColor);
+    doc.roundedRect(margin, y, W - margin*2, 16, 3, 3, 'F');
+    doc.setTextColor(...primaryColor);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('COMPÉTENCE VISÉE', margin + 5, y + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 50);
+    doc.text(fiche.competence, margin + 5, y + 13);
+
+    // ── Élève / Date row ──
+    y += 22;
+    // Élève
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin, y, (W - margin*2 - 6) / 2, 14, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text('ÉLÈVE', margin + 5, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 30, 50);
+    doc.text(state.eleve || '— Non renseigné —', margin + 5, y + 12);
+    // Date
+    const halfW = (W - margin*2 - 6) / 2;
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin + halfW + 6, y, halfW, 14, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text('DATE', margin + halfW + 11, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 30, 50);
+    doc.text(state.date || '— —', margin + halfW + 11, y + 12);
+
+    // ── Photo ──
+    y += 20;
+    const photoAreaH = 110;
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin, y, W - margin*2, photoAreaH, 4, 4, 'F');
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(margin, y, W - margin*2, photoAreaH, 4, 4, 'S');
+
+    // Label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text('PRODUCTION DE L\'ÉLÈVE', margin + 5, y + 7);
+
+    // Insert image centered
+    const imgX = margin + 4;
+    const imgY = y + 10;
+    const imgW = W - margin*2 - 8;
+    const imgH = photoAreaH - 14;
+
+    try {
+      // Determine format from data URL
+      const mime = state.photoDataUrl.split(';')[0].split(':')[1];
+      const fmt = mime === 'image/png' ? 'PNG' : 'JPEG';
+      doc.addImage(state.photoDataUrl, fmt, imgX, imgY, imgW, imgH, '', 'FAST');
+    } catch(e) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(10);
+      doc.setTextColor(200, 0, 0);
+      doc.text('Erreur de chargement de l\'image', imgX + imgW/2, imgY + imgH/2, { align: 'center' });
+    }
+
+    // ── Observation box ──
+    y += photoAreaH + 6;
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin, y, W - margin*2, 36, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text('OBSERVATIONS DE L\'ENSEIGNANT(E)', margin + 5, y + 7);
+    // Lines
+    doc.setDrawColor(220, 218, 213);
+    doc.setLineWidth(0.3);
+    for (let i = 0; i < 3; i++) {
+      doc.line(margin + 5, y + 13 + i * 8, W - margin - 5, y + 13 + i * 8);
+    }
+
+    // ── Evaluation grid ──
+    y += 42;
+    const levels = ['Non atteint', 'En cours', 'Atteint', 'Dépassé'];
+    const lvlW = (W - margin*2) / levels.length;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text('NIVEAU DE MAÎTRISE', margin + 5, y);
+    y += 4;
+    levels.forEach((lvl, i) => {
+      const lx = margin + i * lvlW;
+      const colors = [
+        [254, 226, 226], [254, 243, 199], [220, 252, 231], [219, 234, 254]
+      ];
+      const textColors = [
+        [185, 28, 28], [161, 98, 7], [21, 128, 61], [29, 78, 216]
+      ];
+      doc.setFillColor(...colors[i]);
+      doc.roundedRect(lx, y, lvlW - 2, 12, 2, 2, 'F');
+      doc.setTextColor(...textColors[i]);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.text(lvl, lx + lvlW/2 - 1, y + 8, { align: 'center' });
+      // Checkbox circle
+      doc.setDrawColor(...textColors[i]);
+      doc.setLineWidth(0.8);
+      doc.circle(lx + lvlW - 7, y + 6, 3, 'S');
+    });
+
+    // ── Footer ──
+    y = H - 12;
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, H - 10, W, 10, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`Fiches Objectifs · ${tab.label} · ${subcat.label} · Généré le ${new Date().toLocaleDateString('fr-FR')}`, W/2, H - 4, { align: 'center' });
+
+    // ── Save ──
+    const safeName = fiche.name.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
+    doc.save(`fiche_objectif_${safeName}.pdf`);
+
+    showToast('PDF généré avec succès !', '✅');
+  } catch(err) {
+    console.error(err);
+    showToast('Erreur lors de la génération', '❌');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<span>📄</span> Générer le PDF`;
+}
+
+
+// ══ MODAL NOUVELLE FICHE ══
+const EMOJIS = ['📝','🔢','📐','📏','🔷','🧊','🪞','🗺️','⚖️','🏛️','✖️','➕','½','🔤','✉️','🖼️','💡','🗣️','💬','📖','🎯','⭐','🌟','🎨','🔬','🌍','📊','🧮','✏️','🖊️','📌','🏆'];
+let selectedEmoji = '📝';
+
+function openModal() {
+  // Sync tab selector to current tab
+  document.getElementById('mTab').value = state.tab;
+  refreshSubcatSelect();
+  document.getElementById('mName').value = '';
+  document.getElementById('mDesc').value = '';
+  document.getElementById('mComp').value = '';
+  selectedEmoji = '📝';
+  buildEmojiStrip();
+  document.getElementById('modalIconPreview').textContent = selectedEmoji;
+  document.getElementById('ficheModal').classList.add('open');
+  setTimeout(() => document.getElementById('mName').focus(), 200);
+}
+
+function closeModal() {
+  document.getElementById('ficheModal').classList.remove('open');
+}
+
+function modalBackdropClick(e) {
+  if (e.target === document.getElementById('ficheModal')) closeModal();
+}
+
+function buildEmojiStrip() {
+  const strip = document.getElementById('emojiStrip');
+  strip.innerHTML = EMOJIS.map(em => `
+    <button class="emoji-btn ${em === selectedEmoji ? 'selected' : ''}"
+      onclick="pickEmoji('${em}')" type="button">${em}</button>
+  `).join('');
+}
+
+function pickEmoji(em) {
+  selectedEmoji = em;
+  document.getElementById('modalIconPreview').textContent = em;
+  buildEmojiStrip();
+}
+
+function refreshSubcatSelect() {
+  const tab = document.getElementById('mTab').value;
+  const sel = document.getElementById('mSubcat');
+  sel.innerHTML = Object.entries(DATA[tab].subcategories)
+    .map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`)
+    .join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mTab')?.addEventListener('change', refreshSubcatSelect);
+});
+
+function saveFiche() {
+  const name  = document.getElementById('mName').value.trim();
+  const desc  = document.getElementById('mDesc').value.trim();
+  const comp  = document.getElementById('mComp').value.trim();
+  const tab   = document.getElementById('mTab').value;
+  const subcat= document.getElementById('mSubcat').value;
+
+  if (!name || !desc || !comp) {
+    showToast('Remplissez tous les champs obligatoires', '⚠️');
+    return;
+  }
+
+  const id = 'custom_' + Date.now();
+  const newFiche = { id, name, desc, competence: comp, icon: selectedEmoji, custom: true };
+  DATA[tab].subcategories[subcat].fiches.push(newFiche);
+
+  // Switch to the right tab/subcat so the user sees the new card
+  state.tab = tab;
+  state.openCat = subcat;
+  state.selectedSubcat = subcat;
+  state.selectedFiche = null;
+  document.body.className = 'tab-' + tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tab-btn.' + tab).classList.add('active');
+
+  closeModal();
+  render();
+  showToast('Fiche "' + name + '" ajoutée !', '✨');
+}
+
+function deleteFiche(tabKey, subcatKey, ficheId, event) {
+  event.stopPropagation();
+  DATA[tabKey].subcategories[subcatKey].fiches =
+    DATA[tabKey].subcategories[subcatKey].fiches.filter(f => f.id !== ficheId);
+  if (state.selectedFiche?.id === ficheId) {
+    state.selectedFiche = null;
+    state.photoDataUrl = null;
+  }
+  render();
+  showToast('Fiche supprimée', '🗑️');
+}
+
+// ── Update mTab select when tab switches ──
+const _origSwitchTab = switchTab;
+
+// ── INIT ──
+render();
+</script>
+</body>
+</html>
