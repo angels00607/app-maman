@@ -318,6 +318,38 @@
     flex-shrink: 0;
   }
 
+  .illustration-selector {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px;
+    gap: 16px;
+    align-items: center;
+    padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+  }
+  .illustration-selector select {
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    width: 100%;
+    padding: 11px 38px 11px 13px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+  }
+  .illustration-selector select:focus { border-color: var(--active-primary); }
+  .illustration-preview {
+    width: 110px;
+    height: 88px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: white;
+    border: 1px solid var(--border);
+  }
+
   /* Upload zone */
   .upload-zone {
     border: 2px dashed var(--border);
@@ -481,6 +513,8 @@
     .cat-icon { width: 30px; height: 30px; font-size: 15px; }
     .main-content { padding: 16px; }
     .fields-row { grid-template-columns: 1fr; }
+    .illustration-selector { grid-template-columns: 1fr 82px; }
+    .illustration-preview { width: 82px; height: 72px; }
   }
 
   /* iPad portrait specific */
@@ -850,6 +884,25 @@ const DATA = {
   }
 };
 
+const ILLUSTRATIONS = [
+  { label: 'Groupe sous un arbre', src: 'assets/illustrations/01-groupe-arbre.png' },
+  { label: 'Lecture', src: 'assets/illustrations/02-lecture.png' },
+  { label: 'Musique', src: 'assets/illustrations/03-musique.png' },
+  { label: 'Nombres', src: 'assets/illustrations/04-nombres.png' },
+  { label: 'Motricité', src: 'assets/illustrations/05-motricite.png' },
+  { label: 'Travail au bureau', src: 'assets/illustrations/06-travail-bureau.png' },
+  { label: 'La classe', src: 'assets/illustrations/07-classe.png' },
+  { label: 'Découverte de la nature', src: 'assets/illustrations/08-nature.png' },
+  { label: 'Relations entre élèves', src: 'assets/illustrations/09-relations.png' },
+  { label: 'Écriture', src: 'assets/illustrations/10-ecriture.png' },
+  { label: 'Arts visuels', src: 'assets/illustrations/11-arts.png' },
+  { label: 'Présenter un dessin', src: 'assets/illustrations/12-dessin.png' },
+  { label: 'Relation adulte-enfant', src: 'assets/illustrations/13-adulte-enfant.png' },
+  { label: 'Activités scolaires', src: 'assets/illustrations/14-ecole.png' },
+  { label: 'Visite au musée', src: 'assets/illustrations/15-musee.png' },
+  { label: 'Collaboration', src: 'assets/illustrations/16-collaboration.png' }
+];
+
 // ── STATE ──
 let state = {
   tab: 'transversal',
@@ -860,6 +913,7 @@ let state = {
   activite: '',
   objectifs: '',
   observations: '',
+  illustration: ILLUSTRATIONS[0].src,
 };
 
 // ── RENDER ──
@@ -917,7 +971,21 @@ function renderMain() {
     <div class="gen-panel">
       <div class="gen-title">
         <span class="step-badge">1</span>
-        Ajouter une photo de l'élève ou du travail
+        Préparer la fiche objectif
+      </div>
+
+      <div class="illustration-selector">
+        <div class="field-group">
+          <label class="field-label" for="illustrationSelect">Illustration du PDF</label>
+          <select id="illustrationSelect" onchange="state.illustration = this.value; render()">
+            ${ILLUSTRATIONS.map((illustration, index) => `
+              <option value="${illustration.src}" ${state.illustration === illustration.src ? 'selected' : ''}>
+                Image ${index + 1} - ${illustration.label}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+        <img class="illustration-preview" src="${state.illustration}" alt="Aperçu de l’illustration choisie" />
       </div>
 
       <div class="upload-zone ${state.photoDataUrl ? 'has-photo' : ''}" id="uploadZone"
@@ -1054,6 +1122,20 @@ async function installPdfFont(doc) {
   }
 }
 
+async function imageUrlToDataUrl(url) {
+  const image = new Image();
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+    image.src = url;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  canvas.getContext('2d').drawImage(image, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 async function generatePDF() {
   const btn = document.getElementById('genBtn');
   if (!btn || !state.photoDataUrl) return;
@@ -1080,7 +1162,7 @@ async function generatePDF() {
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
     doc.text('1P/2P - .... Semestre', 25, 40.0);
 
-    // Domaine et catégorie centrés.
+    // Domaine, illustration choisie et catégorie centrés.
     const domainText = tab.label.toUpperCase();
     let domainSize = 20;
     doc.setFontSize(domainSize);
@@ -1088,22 +1170,39 @@ async function generatePDF() {
       domainSize -= 0.5;
       doc.setFontSize(domainSize);
     }
-    doc.text(domainText, W / 2, 70.4, { align: 'center' });
+    doc.text(domainText, W / 2, 56.5, { align: 'center' });
+
+    try {
+      const illustrationDataUrl = await imageUrlToDataUrl(state.illustration);
+      const illustrationSize = 29;
+      doc.addImage(
+        illustrationDataUrl,
+        'PNG',
+        (W - illustrationSize) / 2,
+        61,
+        illustrationSize,
+        illustrationSize,
+        '',
+        'FAST'
+      );
+    } catch (error) {
+      console.warn('Illustration indisponible', error);
+    }
 
     doc.setFontSize(14);
     const categoryLines = doc.splitTextToSize(subcat.label, 155);
-    doc.text(categoryLines, W / 2, 82.0, { align: 'center', lineHeightFactor: 1.15 });
+    doc.text(categoryLines, W / 2, 98.5, { align: 'center', lineHeightFactor: 1.1 });
 
     // Activité et objectifs.
     doc.setFontSize(14);
-    doc.text(`Activité : ${state.activite || ''}`, 25, 101.4);
-    doc.text(`Objectif(s) : ${state.objectifs || ''}`, 25, 111.7);
+    doc.text(`Activité : ${state.activite || ''}`, 25, 109.5);
+    doc.text(`Objectif(s) : ${state.objectifs || ''}`, 25, 118.5);
 
     // Grand cadre photo pointillé du modèle.
     const photoX = 48.82;
-    const photoY = 122.77;
+    const photoY = 126;
     const photoBoxW = 109.08;
-    const photoBoxH = 91.44;
+    const photoBoxH = 88.2;
     doc.setLineWidth(0.35);
     doc.setLineDashPattern([0.35, 0.35], 0);
     doc.rect(photoX, photoY, photoBoxW, photoBoxH);
