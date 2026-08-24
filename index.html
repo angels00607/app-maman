@@ -41,6 +41,52 @@
     overflow-x: hidden;
   }
 
+  #appRoot { display: none; }
+  body.authenticated #appRoot { display: block; }
+  body.authenticated .login-portal { display: none; }
+
+  .login-portal {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(circle at top left, #dbeafe 0, transparent 38%), var(--bg);
+  }
+  .login-card {
+    width: 100%;
+    max-width: 410px;
+    padding: 38px 34px;
+    border-radius: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+  }
+  .login-mark { font-size: 38px; margin-bottom: 14px; }
+  .login-title { font: 700 25px 'Sora', sans-serif; margin-bottom: 8px; }
+  .login-subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 26px; }
+  .login-error { min-height: 20px; color: #b91c1c; font-size: 13px; font-weight: 700; margin: 4px 0 10px; }
+  .login-submit { width: 100%; }
+  .privacy-note {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .logout-btn {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface2);
+    color: var(--text-muted);
+    padding: 7px 10px;
+    font: 700 12px 'Nunito', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .logout-btn:hover { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+
   /* ── HEADER ── */
   header {
     background: var(--surface);
@@ -765,6 +811,25 @@
 </head>
 <body>
 
+<section class="login-portal" aria-labelledby="loginTitle">
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="login-mark">🔐</div>
+    <h1 class="login-title" id="loginTitle">Connexion sécurisée</h1>
+    <p class="login-subtitle">Accès réservé aux utilisateurs autorisés.</p>
+    <div class="modal-field">
+      <label class="modal-label" for="loginUsername">Identifiant</label>
+      <input class="modal-input" id="loginUsername" name="username" type="text" autocomplete="username" required />
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="loginPassword">Mot de passe</label>
+      <input class="modal-input" id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+    </div>
+    <div class="login-error" id="loginError" role="alert" aria-live="polite"></div>
+    <button class="modal-save login-submit" id="loginSubmit" type="submit">Se connecter</button>
+    <p class="privacy-note">🔒 Les photos choisies pour les PDF restent uniquement dans la mémoire temporaire de cette page et ne sont jamais enregistrées.</p>
+  </form>
+</section>
+
 <div id="appRoot">
 
 <!-- HEADER -->
@@ -774,6 +839,7 @@
     <span class="domain-label">Domaine</span>
     <div class="tab-bar" id="domainTabs"></div>
     <button class="add-mini-btn" onclick="openAddModal('domain')" title="Ajouter un domaine" aria-label="Ajouter un domaine">+</button>
+    <button class="logout-btn" onclick="logout()">Déconnexion</button>
   </div>
 </header>
 
@@ -821,6 +887,143 @@
 <script>
 
 const { jsPDF } = window.jspdf;
+
+const AUTH_USERS = {
+  'daniela': { name: 'Daniela', salt: 'd4n13la-2026', hash: '76fbc0d6bb47708e326358d6fe68b469e45eba872e5afd2654bc55d247566cb4' },
+  'carole': { name: 'Carole', salt: 'c4r0le-2026', hash: '29c10f9c55b1a0b6f59a342b9ce3281fca9d39c7074571d2a535dcdf04f1798f' },
+  'artémise': { name: 'Artémise', salt: 'art3mise-2026', hash: '4bef4435af232767a0dcae41af9e074780602269a968da3794cf01c2acbc93d4' },
+  'althéa': { name: 'Althéa', salt: 'alth3a-2026', hash: '9f725f4f1b478958a3b80e09ec73552b3b1e4fef9b9dacaf647dab9e09a5fc94' }
+};
+const AUTH_SESSION_KEY = 'appMamanAuthSession';
+const AUTH_ATTEMPTS_KEY = 'appMamanAuthAttempts';
+const SESSION_DURATION_MS = 30 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 60 * 1000;
+let inactivityTimer;
+
+function normalizeUsername(value) {
+  return value.trim().normalize('NFC').toLocaleLowerCase('fr-CH');
+}
+
+async function derivePasswordHash(password, salt) {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits({
+    name: 'PBKDF2',
+    salt: encoder.encode(salt),
+    iterations: 310000,
+    hash: 'SHA-256'
+  }, keyMaterial, 256);
+  return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hashesMatch(first, second) {
+  if (first.length !== second.length) return false;
+  let difference = 0;
+  for (let index = 0; index < first.length; index++) {
+    difference |= first.charCodeAt(index) ^ second.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function getLoginAttempts() {
+  try {
+    return JSON.parse(sessionStorage.getItem(AUTH_ATTEMPTS_KEY)) || { count: 0, lockedUntil: 0 };
+  } catch {
+    return { count: 0, lockedUntil: 0 };
+  }
+}
+
+function openAuthenticatedApp(username) {
+  document.body.classList.add('authenticated');
+  document.getElementById('loginError').textContent = '';
+  resetInactivityTimer();
+  render();
+}
+
+function resetInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  if (!document.body.classList.contains('authenticated')) return;
+  inactivityTimer = setTimeout(logout, SESSION_DURATION_MS);
+}
+
+function logout() {
+  state.photoDataUrl = null;
+  sessionStorage.removeItem(AUTH_SESSION_KEY);
+  clearTimeout(inactivityTimer);
+  location.reload();
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const submitButton = document.getElementById('loginSubmit');
+  const errorElement = document.getElementById('loginError');
+  const attempts = getLoginAttempts();
+  const now = Date.now();
+
+  if (attempts.lockedUntil > now) {
+    const seconds = Math.ceil((attempts.lockedUntil - now) / 1000);
+    errorElement.textContent = `Trop de tentatives. Réessayez dans ${seconds} secondes.`;
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = 'Vérification…';
+  const username = normalizeUsername(document.getElementById('loginUsername').value);
+  const passwordInput = document.getElementById('loginPassword');
+  const password = passwordInput.value;
+  const user = AUTH_USERS[username];
+  let authenticated = false;
+
+  if (user && password) {
+    const candidateHash = await derivePasswordHash(password, user.salt);
+    authenticated = hashesMatch(candidateHash, user.hash);
+  } else if (password) {
+    await derivePasswordHash(password, 'invalid-user-2026');
+  }
+  passwordInput.value = '';
+
+  if (authenticated) {
+    sessionStorage.removeItem(AUTH_ATTEMPTS_KEY);
+    sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+      username: user.name,
+      expiresAt: now + SESSION_DURATION_MS
+    }));
+    openAuthenticatedApp(user.name);
+  } else {
+    const nextCount = attempts.count + 1;
+    const lockedUntil = nextCount >= MAX_LOGIN_ATTEMPTS ? now + LOCK_DURATION_MS : 0;
+    sessionStorage.setItem(AUTH_ATTEMPTS_KEY, JSON.stringify({
+      count: lockedUntil ? 0 : nextCount,
+      lockedUntil
+    }));
+    errorElement.textContent = lockedUntil
+      ? 'Trop de tentatives. Accès temporairement bloqué pendant 60 secondes.'
+      : 'Identifiant ou mot de passe incorrect.';
+  }
+
+  submitButton.disabled = false;
+  submitButton.textContent = 'Se connecter';
+}
+
+function initializeAuthentication() {
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  try {
+    const session = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY));
+    if (session?.expiresAt > Date.now() && Object.values(AUTH_USERS).some(user => user.name === session.username)) {
+      openAuthenticatedApp(session.username);
+      return;
+    }
+  } catch {}
+  sessionStorage.removeItem(AUTH_SESSION_KEY);
+  document.getElementById('loginUsername').focus();
+}
+
+['pointerdown', 'keydown', 'touchstart'].forEach(eventName => {
+  document.addEventListener(eventName, resetInactivityTimer, { passive: true });
+});
 
 // ── DATA ──
 const DATA = {
@@ -1447,7 +1650,7 @@ async function generatePDF() {
   btn.innerHTML = `<span>📄</span> Générer le PDF`;
 }
 // ── INIT ──
-render();
+initializeAuthentication();
 </script>
 </body>
 </html>
