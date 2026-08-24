@@ -66,10 +66,22 @@
   .logo span { color: var(--active-primary); transition: color 0.3s; }
 
   /* ── TABS ── */
+  .domain-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
+  .domain-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
   .tab-bar {
     display: flex;
     gap: 8px;
-    margin-left: auto;
   }
 
   .tab-btn {
@@ -165,49 +177,6 @@
     transition: background 0.18s;
   }
   .cat-btn.active .cat-icon { background: var(--active-primary); }
-
-  .cat-arrow {
-    margin-left: auto;
-    font-size: 12px;
-    opacity: 0.4;
-    transition: transform 0.2s, opacity 0.2s;
-  }
-  .cat-btn.active .cat-arrow { transform: rotate(90deg); opacity: 0.8; }
-
-  /* Sub-category */
-  .subcat-list {
-    display: none;
-    flex-direction: column;
-    gap: 2px;
-    padding-left: 20px;
-    margin-bottom: 4px;
-  }
-  .subcat-list.open { display: flex; }
-
-  .subcat-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text-muted);
-    width: 100%;
-    text-align: left;
-    transition: all 0.18s;
-  }
-  .subcat-btn:hover { background: var(--surface2); color: var(--text); }
-  .subcat-btn.active { background: var(--active-light); color: var(--active-primary); font-weight: 700; }
-  .subcat-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: currentColor; opacity: 0.5; flex-shrink: 0;
-  }
-  .subcat-btn.active .subcat-dot { opacity: 1; }
 
   /* ── MAIN CONTENT ── */
   .main-content {
@@ -493,13 +462,15 @@
   }
 
   @media (max-width: 700px) {
+    header { padding: 0 12px; gap: 10px; }
+    .logo { font-size: 17px; }
+    .domain-label { display: none; }
+    .tab-btn { padding: 7px 12px; font-size: 13px; }
     .app-body { flex-direction: column; height: auto; overflow: visible; }
     .sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); padding: 12px; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; gap: 0; }
     .sidebar-label { display: none; }
     .cat-btn { flex-direction: column; align-items: center; padding: 10px 12px; gap: 4px; white-space: nowrap; font-size: 12px; min-width: 90px; }
     .cat-icon { width: 30px; height: 30px; font-size: 15px; }
-    .cat-arrow { display: none; }
-    .subcat-list { display: none !important; }
     .main-content { padding: 16px; }
     .fields-row { grid-template-columns: 1fr; }
   }
@@ -741,9 +712,12 @@
 <!-- HEADER -->
 <header>
   <div class="logo">Fiches <span>Objectifs</span></div>
-  <div class="tab-bar">
-    <button class="tab-btn math active" onclick="switchTab('math')">📐 Maths</button>
-    <button class="tab-btn fr" onclick="switchTab('fr')">📖 Français</button>
+  <div class="domain-nav">
+    <span class="domain-label">Domaine</span>
+    <div class="tab-bar">
+      <button class="tab-btn math active" onclick="switchTab('math')">📐 Maths</button>
+      <button class="tab-btn fr" onclick="switchTab('fr')">📖 Français</button>
+    </div>
   </div>
 </header>
 
@@ -882,7 +856,6 @@ const DATA = {
 // ── STATE ──
 let state = {
   tab: 'math',
-  openCat: 'numeration',
   selectedSubcat: 'numeration',
   selectedFiche: null,
   photoDataUrl: null,
@@ -898,21 +871,14 @@ function render() {
 
 function renderSidebar() {
   const tab = DATA[state.tab];
-  let html = `<div class="sidebar-label">Catégories</div>`;
+  let html = `<div class="sidebar-label">Catégorie</div>`;
   for (const [key, cat] of Object.entries(tab.subcategories)) {
-    const isOpen = state.openCat === key;
-    const isActiveSub = state.selectedSubcat === key;
+    const isActive = state.selectedSubcat === key;
     html += `
-      <button class="cat-btn ${isOpen ? 'active' : ''}" onclick="toggleCat('${key}')">
+      <button class="cat-btn ${isActive ? 'active' : ''}" onclick="selectCategory('${key}')">
         <div class="cat-icon">${cat.icon}</div>
         ${cat.label}
-        <span class="cat-arrow">▶</span>
       </button>
-      <div class="subcat-list ${isOpen ? 'open' : ''}">
-        <button class="subcat-btn ${isActiveSub ? 'active' : ''}" onclick="selectSubcat('${key}')">
-          <span class="subcat-dot"></span> Toutes les fiches
-        </button>
-      </div>
     `;
   }
   document.getElementById('sidebar').innerHTML = html;
@@ -1025,7 +991,6 @@ function switchTab(tab) {
   state.selectedFiche = null;
   state.photoDataUrl = null;
   const cats = Object.keys(DATA[tab].subcategories);
-  state.openCat = cats[0];
   state.selectedSubcat = cats[0];
   document.body.className = `tab-${tab}`;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1033,17 +998,8 @@ function switchTab(tab) {
   render();
 }
 
-function toggleCat(key) {
-  if (state.openCat === key) return;
-  state.openCat = key;
+function selectCategory(key) {
   state.selectedSubcat = key;
-  state.selectedFiche = null;
-  render();
-}
-
-function selectSubcat(key) {
-  state.selectedSubcat = key;
-  state.openCat = key;
   state.selectedFiche = null;
   render();
 }
@@ -1390,7 +1346,6 @@ function saveFiche() {
 
   // Switch to the right tab/subcat so the user sees the new card
   state.tab = tab;
-  state.openCat = subcat;
   state.selectedSubcat = subcat;
   state.selectedFiche = null;
   document.body.className = 'tab-' + tab;
