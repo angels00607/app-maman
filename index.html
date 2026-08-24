@@ -1162,24 +1162,26 @@ async function generatePDF() {
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
     doc.text('1P/2P - .... Semestre', 25, 40.0);
 
-    // Domaine, illustration choisie et catégorie centrés.
+    // Domaine et catégorie à gauche, illustration choisie à droite.
     const domainText = tab.label.toUpperCase();
+    const headingX = 25;
+    const headingWidth = 124;
     let domainSize = 20;
     doc.setFontSize(domainSize);
-    while (doc.getTextWidth(domainText) > 160 && domainSize > 14) {
+    while (doc.getTextWidth(domainText) > headingWidth && domainSize > 13) {
       domainSize -= 0.5;
       doc.setFontSize(domainSize);
     }
-    doc.text(domainText, W / 2, 56.5, { align: 'center' });
+    doc.text(domainText, headingX, 62);
 
     try {
       const illustrationDataUrl = await imageUrlToDataUrl(state.illustration);
-      const illustrationSize = 29;
+      const illustrationSize = 30;
       doc.addImage(
         illustrationDataUrl,
         'PNG',
-        (W - illustrationSize) / 2,
-        61,
+        157,
+        51,
         illustrationSize,
         illustrationSize,
         '',
@@ -1190,8 +1192,8 @@ async function generatePDF() {
     }
 
     doc.setFontSize(14);
-    const categoryLines = doc.splitTextToSize(subcat.label, 155);
-    doc.text(categoryLines, W / 2, 98.5, { align: 'center', lineHeightFactor: 1.1 });
+    const categoryLines = doc.splitTextToSize(subcat.label, headingWidth);
+    doc.text(categoryLines, headingX, 74.5, { lineHeightFactor: 1.1 });
 
     // Activité et objectifs.
     doc.setFontSize(14);
