@@ -956,7 +956,7 @@ function renderSidebar() {
   const tab = DATA[state.tab];
   let html = `<div class="sidebar-label">Catégorie</div>`;
   if (Object.keys(tab.subcategories).length === 0) {
-    html += `<div class="empty-hint">Aucune catégorie</div>`;
+    html += `<div class="empty-hint">Accès direct à la création du PDF</div>`;
   }
   for (const [key, cat] of Object.entries(tab.subcategories)) {
     const isActive = state.selectedSubcat === key;
@@ -972,34 +972,25 @@ function renderSidebar() {
 
 function renderMain() {
   const tab = DATA[state.tab];
-  const subcat = tab.subcategories[state.selectedSubcat];
+  const hasCategories = Object.keys(tab.subcategories).length > 0;
+  const subcat = hasCategories
+    ? tab.subcategories[state.selectedSubcat]
+    : { label: tab.label, icon: tab.icon };
   let html = '';
-
-  if (!subcat) {
-    html = `
-      <div class="breadcrumb">
-        <span>${tab.label}</span>
-      </div>
-      <div class="empty-state">
-        <div class="empty-icon">${tab.icon}</div>
-        <div class="empty-title">${tab.label}</div>
-        <div class="empty-hint">Aucune catégorie n’est encore définie pour ce domaine.</div>
-      </div>`;
-    document.getElementById('main').innerHTML = html;
-    return;
-  }
 
   // Breadcrumb
   html += `<div class="breadcrumb">
     <span>${tab.label}</span>
-    <span class="sep">›</span>
-    <span class="current">${subcat.label}</span>
+    ${hasCategories ? `
+      <span class="sep">›</span>
+      <span class="current">${subcat.label}</span>
+    ` : ''}
   </div>`;
 
   // Title
   html += `<div>
     <div class="section-title">${subcat.icon} ${subcat.label}</div>
-    <div class="section-subtitle">Créez directement une fiche objectif à partir de cette catégorie</div>
+    <div class="section-subtitle">Créez directement une fiche objectif ${hasCategories ? 'à partir de cette catégorie' : 'pour ce domaine'}</div>
   </div>`;
 
   html += `
@@ -1181,7 +1172,7 @@ async function generatePDF() {
 
   try {
     const tab = DATA[state.tab];
-    const subcat = tab.subcategories[state.selectedSubcat];
+    const subcat = tab.subcategories[state.selectedSubcat] || null;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const fontName = await installPdfFont(doc);
     const W = 210;
@@ -1226,9 +1217,11 @@ async function generatePDF() {
       console.warn('Illustration indisponible', error);
     }
 
-    doc.setFontSize(14);
-    const categoryLines = doc.splitTextToSize(subcat.label, headingWidth);
-    doc.text(categoryLines, headingX, 74.5, { lineHeightFactor: 1.1 });
+    if (subcat) {
+      doc.setFontSize(14);
+      const categoryLines = doc.splitTextToSize(subcat.label, headingWidth);
+      doc.text(categoryLines, headingX, 74.5, { lineHeightFactor: 1.1 });
+    }
 
     // Activité et objectifs.
     doc.setFontSize(14);
@@ -1288,7 +1281,7 @@ async function generatePDF() {
     }
     doc.text(observationLines, observationsX + 3, observationsY + 6, { lineHeightFactor: 1.3 });
 
-    const safeName = subcat.label.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
+    const safeName = (subcat?.label || tab.label).replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
     doc.save(`fiche_objectif_${safeName}.pdf`);
     showToast('PDF généré avec succès !', '✅');
 
