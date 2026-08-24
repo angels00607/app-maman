@@ -89,6 +89,27 @@
   }
   .tab-bar::-webkit-scrollbar { display: none; }
 
+  .add-mini-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: 700 18px/1 'Nunito', sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s;
+  }
+  .add-mini-btn:hover {
+    color: var(--active-primary);
+    border-color: var(--active-primary);
+    background: var(--active-light);
+  }
+
   .tab-btn {
     font-family: 'Nunito', sans-serif;
     font-weight: 800;
@@ -141,6 +162,13 @@
     color: var(--text-muted);
     padding: 4px 8px 8px;
   }
+  .sidebar-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 4px;
+  }
+  .sidebar-heading .sidebar-label { padding-bottom: 4px; }
 
   .cat-btn {
     display: flex;
@@ -745,6 +773,7 @@
   <div class="domain-nav">
     <span class="domain-label">Domaine</span>
     <div class="tab-bar" id="domainTabs"></div>
+    <button class="add-mini-btn" onclick="openAddModal('domain')" title="Ajouter un domaine" aria-label="Ajouter un domaine">+</button>
   </div>
 </header>
 
@@ -760,6 +789,34 @@
 
 <!-- TOAST -->
 <div class="toast" id="toast">✅ PDF généré avec succès !</div>
+
+<div class="modal-backdrop" id="addModal" onclick="if (event.target === this) closeAddModal()">
+  <form class="modal-box" onsubmit="saveNewItem(event)">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span class="modal-title-icon" id="addModalIcon">＋</span>
+        <span id="addModalTitle">Ajouter</span>
+      </div>
+      <button class="modal-close" type="button" onclick="closeAddModal()" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="newItemName" id="newItemLabel">Nom</label>
+      <input class="modal-input" id="newItemName" type="text" maxlength="100" required autocomplete="off" />
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="newItemIcon">Icône</label>
+      <select class="modal-select" id="newItemIcon">
+        <option>📚</option><option>✏️</option><option>🎯</option><option>🌍</option>
+        <option>🔬</option><option>📐</option><option>🎨</option><option>🎵</option>
+        <option>🤸</option><option>🤝</option><option>🌿</option><option>⭐</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" type="button" onclick="closeAddModal()">Annuler</button>
+      <button class="modal-save" type="submit">＋ Ajouter</button>
+    </div>
+  </form>
+</div>
 
 <script>
 
@@ -902,6 +959,43 @@ const DATA = {
   }
 };
 
+const CUSTOM_DATA_KEY = 'appMamanCustomData';
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[character]);
+}
+
+function loadCustomData() {
+  try {
+    const customData = JSON.parse(localStorage.getItem(CUSTOM_DATA_KEY) || '{}');
+    for (const [domainKey, domain] of Object.entries(customData.domains || {})) {
+      DATA[domainKey] = domain;
+    }
+    for (const [domainKey, categories] of Object.entries(customData.categories || {})) {
+      if (DATA[domainKey]) Object.assign(DATA[domainKey].subcategories, categories);
+    }
+  } catch (error) {
+    console.warn('Impossible de charger les ajouts personnalisés', error);
+  }
+}
+
+function saveCustomData(type, domainKey, itemKey, item) {
+  const customData = JSON.parse(localStorage.getItem(CUSTOM_DATA_KEY) || '{"domains":{},"categories":{}}');
+  customData.domains ||= {};
+  customData.categories ||= {};
+  if (type === 'domain') {
+    customData.domains[itemKey] = item;
+  } else {
+    customData.categories[domainKey] ||= {};
+    customData.categories[domainKey][itemKey] = item;
+  }
+  localStorage.setItem(CUSTOM_DATA_KEY, JSON.stringify(customData));
+}
+
+loadCustomData();
+
 const ILLUSTRATIONS = [
   { label: 'Groupe sous un arbre', src: 'assets/illustrations/01-groupe-arbre.png' },
   { label: 'Lecture', src: 'assets/illustrations/02-lecture.png' },
@@ -947,14 +1041,18 @@ function renderDomains() {
   document.documentElement.style.setProperty('--active-light', `${tab.color}18`);
   document.getElementById('domainTabs').innerHTML = Object.entries(DATA).map(([key, domain]) => `
     <button class="tab-btn ${state.tab === key ? 'active' : ''}" onclick="switchTab('${key}')">
-      ${domain.icon} ${domain.label}
+      ${escapeHtml(domain.icon)} ${escapeHtml(domain.label)}
     </button>
   `).join('');
 }
 
 function renderSidebar() {
   const tab = DATA[state.tab];
-  let html = `<div class="sidebar-label">Catégorie</div>`;
+  let html = `
+    <div class="sidebar-heading">
+      <div class="sidebar-label">Catégorie</div>
+      <button class="add-mini-btn" onclick="openAddModal('category')" title="Ajouter une catégorie" aria-label="Ajouter une catégorie">+</button>
+    </div>`;
   if (Object.keys(tab.subcategories).length === 0) {
     html += `<div class="empty-hint">Accès direct à la création du PDF</div>`;
   }
@@ -962,8 +1060,8 @@ function renderSidebar() {
     const isActive = state.selectedSubcat === key;
     html += `
       <button class="cat-btn ${isActive ? 'active' : ''}" onclick="selectCategory('${key}')">
-        <div class="cat-icon">${cat.icon}</div>
-        ${cat.label}
+        <div class="cat-icon">${escapeHtml(cat.icon)}</div>
+        ${escapeHtml(cat.label)}
       </button>
     `;
   }
@@ -980,16 +1078,16 @@ function renderMain() {
 
   // Breadcrumb
   html += `<div class="breadcrumb">
-    <span>${tab.label}</span>
+    <span>${escapeHtml(tab.label)}</span>
     ${hasCategories ? `
       <span class="sep">›</span>
-      <span class="current">${subcat.label}</span>
+      <span class="current">${escapeHtml(subcat.label)}</span>
     ` : ''}
   </div>`;
 
   // Title
   html += `<div>
-    <div class="section-title">${subcat.icon} ${subcat.label}</div>
+    <div class="section-title">${escapeHtml(subcat.icon)} ${escapeHtml(subcat.label)}</div>
     <div class="section-subtitle">Créez directement une fiche objectif ${hasCategories ? 'à partir de cette catégorie' : 'pour ce domaine'}</div>
   </div>`;
 
@@ -1076,6 +1174,61 @@ function renderMain() {
 }
 
 // ── ACTIONS ──
+let addModalMode = 'domain';
+
+function openAddModal(mode) {
+  addModalMode = mode;
+  const isDomain = mode === 'domain';
+  document.getElementById('addModalTitle').textContent = isDomain
+    ? 'Nouveau domaine'
+    : 'Nouvelle catégorie';
+  document.getElementById('newItemLabel').textContent = isDomain
+    ? 'Nom du domaine'
+    : `Nom de la catégorie — ${DATA[state.tab].label}`;
+  document.getElementById('newItemName').value = '';
+  document.getElementById('newItemIcon').value = isDomain ? '📚' : '🎯';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('newItemName').focus(), 50);
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+
+function saveNewItem(event) {
+  event.preventDefault();
+  const name = document.getElementById('newItemName').value.trim();
+  const icon = document.getElementById('newItemIcon').value;
+  if (!name) return;
+
+  const itemKey = `custom_${Date.now()}`;
+  if (addModalMode === 'domain') {
+    const colors = ['#0369a1', '#7e22ce', '#be123c', '#047857', '#b45309'];
+    const domain = {
+      label: name,
+      icon,
+      color: colors[Object.keys(DATA).length % colors.length],
+      subcategories: {}
+    };
+    DATA[itemKey] = domain;
+    saveCustomData('domain', null, itemKey, domain);
+    state.tab = itemKey;
+    state.selectedSubcat = undefined;
+    state.photoDataUrl = null;
+    showToast('Domaine ajouté');
+  } else {
+    const category = { label: name, icon };
+    DATA[state.tab].subcategories[itemKey] = category;
+    saveCustomData('category', state.tab, itemKey, category);
+    state.selectedSubcat = itemKey;
+    state.photoDataUrl = null;
+    showToast('Catégorie ajoutée');
+  }
+
+  closeAddModal();
+  render();
+}
+
 function switchTab(tab) {
   state.tab = tab;
   state.photoDataUrl = null;
