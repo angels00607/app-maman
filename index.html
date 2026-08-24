@@ -381,8 +381,9 @@
     flex-direction: column;
     gap: 6px;
   }
+  .field-group.full { grid-column: 1 / -1; }
   .field-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
-  .field-input {
+  .field-input, .field-textarea {
     font-family: 'Nunito', sans-serif;
     font-size: 15px;
     font-weight: 600;
@@ -395,7 +396,12 @@
     outline: none;
     width: 100%;
   }
-  .field-input:focus { border-color: var(--active-primary); }
+  .field-textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+  .field-input:focus, .field-textarea:focus { border-color: var(--active-primary); }
 
   /* Generate button */
   .gen-btn {
@@ -853,6 +859,7 @@ let state = {
   date: new Date().toLocaleDateString('fr-FR'),
   activite: '',
   objectifs: '',
+  observations: '',
 };
 
 // ── RENDER ──
@@ -954,6 +961,14 @@ function renderMain() {
           <label class="field-label">Objectif(s)</label>
           <input class="field-input" type="text" placeholder="Indiquez les objectifs" value="${state.objectifs}"
             oninput="state.objectifs = this.value" />
+        </div>
+      </div>
+
+      <div class="fields-row">
+        <div class="field-group full">
+          <label class="field-label">Observations</label>
+          <textarea class="field-textarea" placeholder="Saisissez les observations qui apparaîtront dans le PDF"
+            oninput="state.observations = this.value">${state.observations}</textarea>
         </div>
       </div>
 
@@ -1117,15 +1132,25 @@ async function generatePDF() {
       doc.text('Photo', W / 2, 131.2, { align: 'center' });
     }
 
-    // Observations et trois lignes pointillées.
+    // Observations dans un encadré, à la place des lignes pointillées.
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.text('Observations', 25, 232.3);
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.28);
-    doc.setLineDashPattern([0.28, 0.75], 0);
-    [250.7, 257.1, 263.5].forEach(lineY => doc.line(25, lineY, 182.3, lineY));
-    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(0.35);
+    const observationsX = 25;
+    const observationsY = 238;
+    const observationsW = 157.3;
+    const observationsH = 31.5;
+    doc.rect(observationsX, observationsY, observationsW, observationsH);
+
+    doc.setFontSize(10);
+    let observationLines = doc.splitTextToSize(state.observations || '', observationsW - 6);
+    if (observationLines.length > 5) {
+      observationLines = observationLines.slice(0, 5);
+      observationLines[4] = observationLines[4].replace(/[.,;:!?]*$/, '') + '…';
+    }
+    doc.text(observationLines, observationsX + 3, observationsY + 6, { lineHeightFactor: 1.3 });
 
     const safeName = subcat.label.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
     doc.save(`fiche_objectif_${safeName}.pdf`);
