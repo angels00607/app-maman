@@ -851,6 +851,8 @@ let state = {
   photoDataUrl: null,
   eleve: '',
   date: new Date().toLocaleDateString('fr-FR'),
+  activite: '',
+  objectifs: '',
 };
 
 // ── RENDER ──
@@ -942,6 +944,19 @@ function renderMain() {
         </div>
       </div>
 
+      <div class="fields-row">
+        <div class="field-group">
+          <label class="field-label">Activité</label>
+          <input class="field-input" type="text" placeholder="Décrivez l’activité" value="${state.activite}"
+            oninput="state.activite = this.value" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Objectif(s)</label>
+          <input class="field-input" type="text" placeholder="Indiquez les objectifs" value="${state.objectifs}"
+            oninput="state.objectifs = this.value" />
+        </div>
+      </div>
+
       <button class="gen-btn" onclick="generatePDF()" id="genBtn" ${!state.photoDataUrl ? 'disabled' : ''}>
         <span>📄</span> Générer le PDF
       </button>
@@ -1005,6 +1020,25 @@ const LOGOS_B64 = {
 };
 
 // ── PDF GENERATION ──
+async function installPdfFont(doc) {
+  try {
+    const response = await fetch('ComicNeue-Regular.ttf');
+    if (!response.ok) throw new Error('Police PDF indisponible');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    doc.addFileToVFS('ComicNeue-Regular.ttf', btoa(binary));
+    doc.addFont('ComicNeue-Regular.ttf', 'ComicNeue', 'normal');
+    return 'ComicNeue';
+  } catch (error) {
+    console.warn(error);
+    return 'helvetica';
+  }
+}
+
 async function generatePDF() {
   const btn = document.getElementById('genBtn');
   if (!btn || !state.photoDataUrl) return;
@@ -1016,210 +1050,83 @@ async function generatePDF() {
   try {
     const tab = DATA[state.tab];
     const subcat = tab.subcategories[state.selectedSubcat];
-
-    // ── Couleurs par matière ──
-    const primaryColor = [
-      parseInt(tab.color.slice(1, 3), 16),
-      parseInt(tab.color.slice(3, 5), 16),
-      parseInt(tab.color.slice(5, 7), 16)
-    ];
-
-    // ── Logo selon sous-catégorie / matière ──
-    // Mapping subcatKey → logo key
-    const LOGO_MAP = {
-      espace_math: 'maths',
-      nombre: 'maths',
-      operations: 'maths',
-      grandeurs: 'maths',
-      ecrit: 'production_ecrite',
-      ecriture: 'production_ecrite',
-      oral: 'lecture',
-      langue: 'lecture',
-      genres: 'lecture',
-      lecture_3p: 'lecture',
-      corps: 'corps'
-    };
-    const logoDataUrl = LOGOS_B64[LOGO_MAP[state.selectedSubcat]];
-
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, H = 297;
-    const mL = 14, mR = 14; // marges gauche/droite
-    const contentW = W - mL - mR;
-
-    // ══════════════════════════════════════
-    //  FOND BLANC
-    // ══════════════════════════════════════
+    const fontName = await installPdfFont(doc);
+    const W = 210;
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, W, H, 'F');
-
-    // ══════════════════════════════════════
-    //  LIGNE 1 : Prénom / Date   |   LOGO (haut droite)
-    // ══════════════════════════════════════
-    let y = 18;
-
-    // Prénom
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.rect(0, 0, W, 297, 'F');
     doc.setTextColor(0, 0, 0);
-    doc.text('Prénom :', mL, y);
-    doc.setFont('helvetica', 'normal');
-    const prenomVal = state.eleve || '';
-    doc.text(prenomVal, mL + 22, y);
-    // Ligne sous le prénom
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.4);
-    doc.line(mL + 21, y + 1, mL + 80, y + 1);
+    doc.setDrawColor(4, 36, 51);
+    doc.setFont(fontName, 'normal');
 
-    // Date
-    doc.setFont('helvetica', 'bold');
+    // En-tête, aux positions exactes du modèle.
     doc.setFontSize(12);
-    doc.text('Date :', mL + 90, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(state.date || '', mL + 105, y);
-    doc.line(mL + 104, y + 1, W - mR - 40, y + 1);
+    doc.text(`Prénom : ${state.eleve || ''}`, 25, 30.8);
+    doc.text(`Date : ${state.date || ''}`, 157, 30.8);
+    doc.text('1P/2P - .... Semestre', 25, 40.0);
 
-    // Logo matière — haut droite (40x40mm)
-    const logoW = logoDataUrl ? 38 : 0;
-    const logoH = logoW;
-    const logoX = W - mR - logoW;
-    const logoY = 6;
-    if (logoDataUrl) {
-      try {
-        doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH, '', 'FAST');
-      } catch(e) {}
+    // Domaine et catégorie centrés.
+    const domainText = tab.label.toUpperCase();
+    let domainSize = 20;
+    doc.setFontSize(domainSize);
+    while (doc.getTextWidth(domainText) > 160 && domainSize > 14) {
+      domainSize -= 0.5;
+      doc.setFontSize(domainSize);
     }
+    doc.text(domainText, W / 2, 70.4, { align: 'center' });
 
-    // ══════════════════════════════════════
-    //  LIGNE 2 : Niveau scolaire / Semestre
-    // ══════════════════════════════════════
-    y += 10;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    const niveauText = '1P/2P – .... Semestre';
-    doc.text(niveauText, mL, y);
+    doc.setFontSize(14);
+    const categoryLines = doc.splitTextToSize(subcat.label, 155);
+    doc.text(categoryLines, W / 2, 82.0, { align: 'center', lineHeightFactor: 1.15 });
 
-    // ══════════════════════════════════════
-    //  BANDEAU MATIÈRE (fond coloré)
-    // ══════════════════════════════════════
-    y += 8;
-    const bandeauH = 10;
-    doc.setFillColor(...primaryColor);
-    doc.rect(mL, y, contentW - logoW - 4, bandeauH, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    const matiereLabel = tab.label.toUpperCase() + ' – ' + subcat.label.toUpperCase();
-    doc.text(matiereLabel, mL + 4, y + 7.2);
+    // Activité et objectifs.
+    doc.setFontSize(14);
+    doc.text(`Activité : ${state.activite || ''}`, 25, 101.4);
+    doc.text(`Objectif(s) : ${state.objectifs || ''}`, 25, 111.7);
 
-    // ══════════════════════════════════════
-    //  CRITÈRE
-    // ══════════════════════════════════════
-    y += bandeauH + 7;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Critère', mL, y);
-    doc.setFont('helvetica', 'normal');
-    doc.line(mL + 18, y + 1, W - mR, y + 1);
+    // Grand cadre photo pointillé du modèle.
+    const photoX = 48.82;
+    const photoY = 122.77;
+    const photoBoxW = 109.08;
+    const photoBoxH = 91.44;
+    doc.setLineWidth(0.35);
+    doc.setLineDashPattern([0.35, 0.35], 0);
+    doc.rect(photoX, photoY, photoBoxW, photoBoxH);
+    doc.setLineDashPattern([], 0);
 
-    // ══════════════════════════════════════
-    //  ACTIVITÉ
-    // ══════════════════════════════════════
-    y += 9;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Activité :', mL, y);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    // La catégorie sélectionnée définit l'objectif de la fiche.
-    doc.text(subcat.label, mL + 24, y);
-    doc.line(mL + 23, y + 1, W - mR, y + 1);
-
-    // ══════════════════════════════════════
-    //  OBJECTIF(S)
-    // ══════════════════════════════════════
-    y += 9;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Objectif(s) :', mL, y);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    // Compétence visée, avec wrap auto si trop long
-    const splitComp = doc.splitTextToSize(fiche.competence, contentW - 32);
-    doc.text(splitComp, mL + 30, y);
-    if (splitComp.length > 1) y += (splitComp.length - 1) * 5;
-    doc.line(mL + 29, y + 1, W - mR, y + 1);
-
-    // ══════════════════════════════════════
-    //  ZONE PHOTO — grande, centrée
-    // ══════════════════════════════════════
-    y += 10;
-    const photoBoxH = 118;
-    const photoBoxW = contentW;
-
-    // Contour fin
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.5);
-    doc.rect(mL, y, photoBoxW, photoBoxH);
-
-    // Label "Photo" centré en léger
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(200, 200, 200);
-    doc.text('Photo', mL + photoBoxW / 2, y + 5, { align: 'center' });
-
-    // Image de l'élève
     try {
       const mime = state.photoDataUrl.split(';')[0].split(':')[1];
       const fmt  = mime === 'image/png' ? 'PNG' : 'JPEG';
-      // Ajustement proportionnel : charger les dimensions via canvas
       const img = new Image();
       await new Promise(res => { img.onload = res; img.src = state.photoDataUrl; });
       const imgRatio = img.naturalWidth / img.naturalHeight;
       const boxRatio = photoBoxW / photoBoxH;
       let drawW, drawH;
       if (imgRatio > boxRatio) {
-        drawW = photoBoxW - 4;
+        drawW = photoBoxW - 1.4;
         drawH = drawW / imgRatio;
       } else {
-        drawH = photoBoxH - 4;
+        drawH = photoBoxH - 1.4;
         drawW = drawH * imgRatio;
       }
-      const drawX = mL + (photoBoxW - drawW) / 2;
-      const drawY = y + (photoBoxH - drawH) / 2;
+      const drawX = photoX + (photoBoxW - drawW) / 2;
+      const drawY = photoY + (photoBoxH - drawH) / 2;
       doc.addImage(state.photoDataUrl, fmt, drawX, drawY, drawW, drawH, '', 'FAST');
     } catch(e) {
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(10);
-      doc.setTextColor(200, 0, 0);
-      doc.text('Erreur image', mL + photoBoxW/2, y + photoBoxH/2, { align: 'center' });
+      doc.setFontSize(12);
+      doc.text('Photo', W / 2, 131.2, { align: 'center' });
     }
 
-    // ══════════════════════════════════════
-    //  OBSERVATIONS
-    // ══════════════════════════════════════
-    y += photoBoxH + 8;
+    // Observations et trois lignes pointillées.
     doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Observations', mL, y);
-    y += 2;
-    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text('Observations', 25, 232.3);
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.35);
-    // 3 lignes d'écriture
-    const lineSpacing = 9;
-    const dotLineColor = [180, 180, 180];
-    for (let i = 0; i < 3; i++) {
-      y += lineSpacing;
-      doc.setDrawColor(...dotLineColor);
-      doc.line(mL, y, W - mR, y);
-    }
+    doc.setLineWidth(0.28);
+    doc.setLineDashPattern([0.28, 0.75], 0);
+    [250.7, 257.1, 263.5].forEach(lineY => doc.line(25, lineY, 182.3, lineY));
+    doc.setLineDashPattern([], 0);
 
-    // ══════════════════════════════════════
-    //  SAVE
-    // ══════════════════════════════════════
     const safeName = subcat.label.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
     doc.save(`fiche_objectif_${safeName}.pdf`);
     showToast('PDF généré avec succès !', '✅');
