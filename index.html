@@ -881,6 +881,24 @@ const DATA = {
         icon: '📏'
       }
     }
+  },
+  mouvement: {
+    label: 'Corps et mouvement',
+    icon: '🤸',
+    color: '#c2410c',
+    subcategories: {}
+  },
+  arts: {
+    label: 'Arts visuels',
+    icon: '🎨',
+    color: '#7e22ce',
+    subcategories: {}
+  },
+  musique: {
+    label: 'Musique',
+    icon: '🎵',
+    color: '#a21caf',
+    subcategories: {}
   }
 };
 
@@ -937,6 +955,9 @@ function renderDomains() {
 function renderSidebar() {
   const tab = DATA[state.tab];
   let html = `<div class="sidebar-label">Catégorie</div>`;
+  if (Object.keys(tab.subcategories).length === 0) {
+    html += `<div class="empty-hint">Aucune catégorie</div>`;
+  }
   for (const [key, cat] of Object.entries(tab.subcategories)) {
     const isActive = state.selectedSubcat === key;
     html += `
@@ -953,6 +974,20 @@ function renderMain() {
   const tab = DATA[state.tab];
   const subcat = tab.subcategories[state.selectedSubcat];
   let html = '';
+
+  if (!subcat) {
+    html = `
+      <div class="breadcrumb">
+        <span>${tab.label}</span>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">${tab.icon}</div>
+        <div class="empty-title">${tab.label}</div>
+        <div class="empty-hint">Aucune catégorie n’est encore définie pour ce domaine.</div>
+      </div>`;
+    document.getElementById('main').innerHTML = html;
+    return;
+  }
 
   // Breadcrumb
   html += `<div class="breadcrumb">
