@@ -729,59 +729,6 @@
   <main class="main-content" id="main"></main>
 </div>
 
-
-<!-- MODAL NOUVELLE FICHE -->
-<div class="modal-backdrop" id="ficheModal" onclick="modalBackdropClick(event)">
-  <div class="modal-box" id="modalBox">
-    <div class="modal-header">
-      <div class="modal-title">
-        <div class="modal-title-icon" id="modalIconPreview">✨</div>
-        Nouvelle fiche objectif
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-
-    <div class="modal-field">
-      <label class="modal-label">Icône</label>
-      <div class="emoji-strip" id="emojiStrip"></div>
-    </div>
-
-    <div class="modal-field">
-      <label class="modal-label">Nom de la fiche *</label>
-      <input class="modal-input" id="mName" type="text" placeholder="ex : Les nombres décimaux" maxlength="60" />
-    </div>
-
-    <div class="modal-field">
-      <label class="modal-label">Description courte *</label>
-      <input class="modal-input" id="mDesc" type="text" placeholder="ex : Reconnaître et comparer des décimaux" maxlength="90" />
-    </div>
-
-    <div class="modal-field">
-      <label class="modal-label">Compétence visée *</label>
-      <input class="modal-input" id="mComp" type="text" placeholder="ex : Lire et écrire les nombres décimaux" maxlength="100" />
-    </div>
-
-    <div class="modal-row">
-      <div class="modal-field">
-        <label class="modal-label">Matière</label>
-        <select class="modal-select" id="mTab">
-          <option value="math">📐 Maths</option>
-          <option value="fr">📖 Français</option>
-        </select>
-      </div>
-      <div class="modal-field">
-        <label class="modal-label">Catégorie</label>
-        <select class="modal-select" id="mSubcat"></select>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="modal-cancel" onclick="closeModal()">Annuler</button>
-      <button class="modal-save" onclick="saveFiche()">✅ Ajouter la fiche</button>
-    </div>
-  </div>
-</div>
-
 </div><!-- /#appRoot -->
 
 <!-- TOAST -->
@@ -800,26 +747,11 @@ const DATA = {
     subcategories: {
       numeration: {
         label: 'Numération',
-        icon: '🔢',
-        fiches: [
-          { id: 'n1', name: 'Lire et écrire les nombres', icon: '🔢', desc: 'Reconnaissance et écriture des nombres jusqu\'à 1000', competence: 'Lire, écrire, représenter des nombres' },
-          { id: 'n2', name: 'Comparer et ranger', icon: '⚖️', desc: 'Comparer des nombres entiers et les ranger dans l\'ordre', competence: 'Comparer, ranger, encadrer des nombres' },
-          { id: 'n3', name: 'La valeur des chiffres', icon: '🏛️', desc: 'Unités, dizaines, centaines, milliers', competence: 'Comprendre la valeur positionnelle' },
-          { id: 'n4', name: 'Additions et soustractions', icon: '➕', desc: 'Calcul posé d\'addition et soustraction', competence: 'Calculer avec les nombres entiers' },
-          { id: 'n5', name: 'Multiplications', icon: '✖️', desc: 'Tables de multiplication et calcul posé', competence: 'Mémoriser et utiliser les tables' },
-          { id: 'n6', name: 'Fractions simples', icon: '½', desc: 'Introduction aux fractions', competence: 'Représenter des fractions simples' },
-        ]
+        icon: '🔢'
       },
       espaces: {
         label: 'Espaces et géométrie',
-        icon: '📐',
-        fiches: [
-          { id: 'g1', name: 'Les figures planes', icon: '🔷', desc: 'Reconnaître et nommer carré, rectangle, triangle, cercle', competence: 'Reconnaître et décrire des figures' },
-          { id: 'g2', name: 'Les solides', icon: '🧊', desc: 'Cube, sphère, pyramide, cylindre', competence: 'Identifier des solides usuels' },
-          { id: 'g3', name: 'Symétrie axiale', icon: '🪞', desc: 'Trouver l\'axe de symétrie d\'une figure', competence: 'Reproduire une figure par symétrie' },
-          { id: 'g4', name: 'Périmètre et aire', icon: '📏', desc: 'Calculer périmètre et aire de figures simples', competence: 'Calculer des grandeurs géométriques' },
-          { id: 'g5', name: 'Se repérer dans l\'espace', icon: '🗺️', desc: 'Utiliser un quadrillage, des coordonnées', competence: 'Se repérer et se déplacer dans le plan' },
-        ]
+        icon: '📐'
       }
     }
   },
@@ -830,24 +762,11 @@ const DATA = {
     subcategories: {
       ecrit: {
         label: 'Produire un écrit',
-        icon: '✏️',
-        fiches: [
-          { id: 'e1', name: 'Écrire un récit', icon: '📝', desc: 'Rédiger un texte narratif avec début, milieu et fin', competence: 'Écrire un texte narratif cohérent' },
-          { id: 'e2', name: 'Écrire une lettre', icon: '✉️', desc: 'Respecter la structure d\'une lettre formelle ou amicale', competence: 'Produire un écrit fonctionnel' },
-          { id: 'e3', name: 'Description d\'image', icon: '🖼️', desc: 'Observer et décrire une image avec précision', competence: 'Décrire et commenter une image' },
-          { id: 'e4', name: 'Le texte explicatif', icon: '💡', desc: 'Organiser et rédiger un texte explicatif', competence: 'Produire un texte informatif structuré' },
-          { id: 'e5', name: 'Orthographe lexicale', icon: '🔤', desc: 'Écrire correctement les mots courants', competence: 'Maîtriser l\'orthographe usuelle' },
-        ]
+        icon: '✏️'
       },
       oral: {
         label: 'Produire un oral',
-        icon: '🎙️',
-        fiches: [
-          { id: 'o1', name: 'Raconter à voix haute', icon: '🗣️', desc: 'Narrer un événement ou une histoire devant la classe', competence: 'Prendre la parole de manière organisée' },
-          { id: 'o2', name: 'Décrire un document', icon: '🖼️', desc: 'Présenter et commenter un document visuel à l\'oral', competence: 'Commenter oralement un document' },
-          { id: 'o3', name: 'Exprimer un avis', icon: '💬', desc: 'Formuler et défendre son opinion clairement', competence: 'Argumenter et débattre' },
-          { id: 'o4', name: 'Lire à voix haute', icon: '📖', desc: 'Lire un texte avec fluidité, intonation et expression', competence: 'Lire couramment à voix haute' },
-        ]
+        icon: '🎙️'
       }
     }
   }
@@ -857,7 +776,6 @@ const DATA = {
 let state = {
   tab: 'math',
   selectedSubcat: 'numeration',
-  selectedFiche: null,
   photoDataUrl: null,
   eleve: '',
   date: new Date().toLocaleDateString('fr-FR'),
@@ -899,42 +817,13 @@ function renderMain() {
   // Title
   html += `<div>
     <div class="section-title">${subcat.icon} ${subcat.label}</div>
-    <div class="section-subtitle">Choisissez une fiche objectif pour générer votre document PDF</div>
+    <div class="section-subtitle">Créez directement une fiche objectif à partir de cette catégorie</div>
   </div>`;
 
-  // Fiche grid
-  html += `<div class="fiche-grid">`;
-  for (const fiche of subcat.fiches) {
-    const sel = state.selectedFiche?.id === fiche.id;
-    const delBtn = fiche.custom
-      ? `<button class="fiche-del-btn" onclick="deleteFiche('${state.tab}','${state.selectedSubcat}','${fiche.id}',event)" title="Supprimer">🗑</button>`
-      : '';
-    html += `
-      <div class="fiche-card ${sel ? 'selected' : ''}" onclick="selectFiche('${state.selectedSubcat}','${fiche.id}')">
-        ${delBtn}
-        <div class="fiche-icon">${fiche.icon}</div>
-        <div class="fiche-name">${fiche.name}</div>
-        <div class="fiche-desc">${fiche.desc}</div>
-        <div class="fiche-badge">${sel ? '✓ Sélectionnée' : fiche.custom ? '⭐ Personnalisée' : 'Fiche objectif'}</div>
-      </div>
-    `;
-  }
-  // Add-fiche card
   html += `
-    <div class="fiche-card add-card" onclick="openModal()">
-      <div class="add-card-icon">➕</div>
-      <div class="add-card-label">Nouvelle fiche</div>
-      <div class="add-card-hint">Ajouter un objectif personnalisé</div>
-    </div>
-  `;
-  html += `</div>`;
-
-  // Generation panel
-  if (state.selectedFiche) {
-    html += `
     <div class="gen-panel">
       <div class="gen-title">
-        <span class="step-badge">4</span>
+        <span class="step-badge">1</span>
         Ajouter une photo de l'élève ou du travail
       </div>
 
@@ -974,13 +863,6 @@ function renderMain() {
       </button>
       ${!state.photoDataUrl ? `<div style="font-size:13px;color:var(--text-muted);text-align:center;">Ajoutez une photo pour activer la génération</div>` : ''}
     </div>`;
-  } else {
-    html += `<div class="empty-state">
-      <div class="empty-icon">${tab.icon}</div>
-      <div class="empty-title">Choisissez une fiche objectif ci-dessus</div>
-      <div class="empty-hint">Sélectionnez une fiche, ajoutez une photo et générez votre PDF en quelques secondes.</div>
-    </div>`;
-  }
 
   document.getElementById('main').innerHTML = html;
 }
@@ -988,7 +870,6 @@ function renderMain() {
 // ── ACTIONS ──
 function switchTab(tab) {
   state.tab = tab;
-  state.selectedFiche = null;
   state.photoDataUrl = null;
   const cats = Object.keys(DATA[tab].subcategories);
   state.selectedSubcat = cats[0];
@@ -1000,19 +881,8 @@ function switchTab(tab) {
 
 function selectCategory(key) {
   state.selectedSubcat = key;
-  state.selectedFiche = null;
+  state.photoDataUrl = null;
   render();
-}
-
-function selectFiche(subcatKey, ficheId) {
-  const fiche = DATA[state.tab].subcategories[subcatKey].fiches.find(f => f.id === ficheId);
-  state.selectedFiche = fiche;
-  render();
-  // scroll to gen panel
-  setTimeout(() => {
-    const panel = document.querySelector('.gen-panel');
-    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 60);
 }
 
 function handleFile(file) {
@@ -1056,7 +926,7 @@ const LOGOS_B64 = {
 // ── PDF GENERATION ──
 async function generatePDF() {
   const btn = document.getElementById('genBtn');
-  if (!btn || !state.selectedFiche || !state.photoDataUrl) return;
+  if (!btn || !state.photoDataUrl) return;
 
   btn.disabled = true;
   btn.innerHTML = `<div class="spinner"></div> Génération en cours…`;
@@ -1065,7 +935,6 @@ async function generatePDF() {
   try {
     const tab = DATA[state.tab];
     const subcat = tab.subcategories[state.selectedSubcat];
-    const fiche = state.selectedFiche;
 
     // ── Couleurs par matière ──
     const primaryColor = state.tab === 'math' ? [26, 86, 196] : [190, 24, 93];
@@ -1173,8 +1042,8 @@ async function generatePDF() {
     doc.text('Activité :', mL, y);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    // Valeur : nom de la fiche
-    doc.text(fiche.name, mL + 24, y);
+    // La catégorie sélectionnée définit l'objectif de la fiche.
+    doc.text(subcat.label, mL + 24, y);
     doc.line(mL + 23, y + 1, W - mR, y + 1);
 
     // ══════════════════════════════════════
@@ -1261,7 +1130,7 @@ async function generatePDF() {
     // ══════════════════════════════════════
     //  SAVE
     // ══════════════════════════════════════
-    const safeName = fiche.name.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
+    const safeName = subcat.label.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
     doc.save(`fiche_objectif_${safeName}.pdf`);
     showToast('PDF généré avec succès !', '✅');
 
@@ -1273,105 +1142,6 @@ async function generatePDF() {
   btn.disabled = false;
   btn.innerHTML = `<span>📄</span> Générer le PDF`;
 }
-
-
-
-// ══ MODAL NOUVELLE FICHE ══
-const EMOJIS = ['📝','🔢','📐','📏','🔷','🧊','🪞','🗺️','⚖️','🏛️','✖️','➕','½','🔤','✉️','🖼️','💡','🗣️','💬','📖','🎯','⭐','🌟','🎨','🔬','🌍','📊','🧮','✏️','🖊️','📌','🏆'];
-let selectedEmoji = '📝';
-
-function openModal() {
-  // Sync tab selector to current tab
-  document.getElementById('mTab').value = state.tab;
-  refreshSubcatSelect();
-  document.getElementById('mName').value = '';
-  document.getElementById('mDesc').value = '';
-  document.getElementById('mComp').value = '';
-  selectedEmoji = '📝';
-  buildEmojiStrip();
-  document.getElementById('modalIconPreview').textContent = selectedEmoji;
-  document.getElementById('ficheModal').classList.add('open');
-  setTimeout(() => document.getElementById('mName').focus(), 200);
-}
-
-function closeModal() {
-  document.getElementById('ficheModal').classList.remove('open');
-}
-
-function modalBackdropClick(e) {
-  if (e.target === document.getElementById('ficheModal')) closeModal();
-}
-
-function buildEmojiStrip() {
-  const strip = document.getElementById('emojiStrip');
-  strip.innerHTML = EMOJIS.map(em => `
-    <button class="emoji-btn ${em === selectedEmoji ? 'selected' : ''}"
-      onclick="pickEmoji('${em}')" type="button">${em}</button>
-  `).join('');
-}
-
-function pickEmoji(em) {
-  selectedEmoji = em;
-  document.getElementById('modalIconPreview').textContent = em;
-  buildEmojiStrip();
-}
-
-function refreshSubcatSelect() {
-  const tab = document.getElementById('mTab').value;
-  const sel = document.getElementById('mSubcat');
-  sel.innerHTML = Object.entries(DATA[tab].subcategories)
-    .map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`)
-    .join('');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('mTab')?.addEventListener('change', refreshSubcatSelect);
-});
-
-function saveFiche() {
-  const name  = document.getElementById('mName').value.trim();
-  const desc  = document.getElementById('mDesc').value.trim();
-  const comp  = document.getElementById('mComp').value.trim();
-  const tab   = document.getElementById('mTab').value;
-  const subcat= document.getElementById('mSubcat').value;
-
-  if (!name || !desc || !comp) {
-    showToast('Remplissez tous les champs obligatoires', '⚠️');
-    return;
-  }
-
-  const id = 'custom_' + Date.now();
-  const newFiche = { id, name, desc, competence: comp, icon: selectedEmoji, custom: true };
-  DATA[tab].subcategories[subcat].fiches.push(newFiche);
-
-  // Switch to the right tab/subcat so the user sees the new card
-  state.tab = tab;
-  state.selectedSubcat = subcat;
-  state.selectedFiche = null;
-  document.body.className = 'tab-' + tab;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.tab-btn.' + tab).classList.add('active');
-
-  closeModal();
-  render();
-  showToast('Fiche "' + name + '" ajoutée !', '✨');
-}
-
-function deleteFiche(tabKey, subcatKey, ficheId, event) {
-  event.stopPropagation();
-  DATA[tabKey].subcategories[subcatKey].fiches =
-    DATA[tabKey].subcategories[subcatKey].fiches.filter(f => f.id !== ficheId);
-  if (state.selectedFiche?.id === ficheId) {
-    state.selectedFiche = null;
-    state.photoDataUrl = null;
-  }
-  render();
-  showToast('Fiche supprimée', '🗑️');
-}
-
-// ── Update mTab select when tab switches ──
-const _origSwitchTab = switchTab;
-
 // ── INIT ──
 render();
 </script>
