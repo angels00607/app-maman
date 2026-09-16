@@ -807,12 +807,7 @@
     .modal-box { padding: 28px 20px 22px; }
   }
 
-  .subject-icons { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; flex-shrink: 0; }
-  .subject-icon { width: 36px; height: 36px; object-fit: contain; background: white; border-radius: 5px; }
   .tab-btn { display: inline-flex; align-items: center; gap: 8px; }
-  .cat-icon, .cat-btn.active .cat-icon { width: auto; min-width: 38px; height: auto; background: transparent; flex-shrink: 0; }
-  .cat-icon .subject-icon { width: 32px; height: 38px; }
-  .section-title .subject-icon { width: 48px; height: 52px; }
 </style>
 </head>
 <body>
@@ -1273,14 +1268,6 @@ function illustrationIndexes(domainKey, categoryKey) {
   return CATEGORY_ILLUSTRATIONS[domainKey]?.[categoryKey] || DOMAIN_ILLUSTRATIONS[domainKey] || [];
 }
 
-function renderSubjectIcon(domainKey, categoryKey, fallback) {
-  const indexes = illustrationIndexes(domainKey, categoryKey);
-  if (!indexes.length) return escapeHtml(fallback);
-  return '<span class="subject-icons" aria-hidden="true">' + indexes.map(index =>
-    '<img class="subject-icon" src="' + ILLUSTRATIONS[index].src + '" alt="" />'
-  ).join('') + '</span>';
-}
-
 function selectDefaultIllustration() {
   const [index = 0] = illustrationIndexes(state.tab, state.selectedSubcat);
   state.illustration = ILLUSTRATIONS[index].src;
@@ -1292,6 +1279,8 @@ let state = {
   selectedSubcat: 'regles_vie',
   photoDataUrl: null,
   eleve: '',
+  niveau: '1P/2P',
+  semestre: '1',
   date: new Date().toLocaleDateString('fr-FR'),
   activite: '',
   objectifs: '',
@@ -1312,7 +1301,7 @@ function renderDomains() {
   document.documentElement.style.setProperty('--active-light', `${tab.color}18`);
   document.getElementById('domainTabs').innerHTML = Object.entries(DATA).map(([key, domain]) => `
     <button class="tab-btn ${state.tab === key ? 'active' : ''}" onclick="switchTab('${key}')">
-      ${renderSubjectIcon(key, null, domain.icon)} ${escapeHtml(domain.label)}
+      ${escapeHtml(domain.label)}
     </button>
   `).join('');
 }
@@ -1331,7 +1320,6 @@ function renderSidebar() {
     const isActive = state.selectedSubcat === key;
     html += `
       <button class="cat-btn ${isActive ? 'active' : ''}" onclick="selectCategory('${key}')">
-        <div class="cat-icon">${renderSubjectIcon(state.tab, key, cat.icon)}</div>
         ${escapeHtml(cat.label)}
       </button>
     `;
@@ -1358,7 +1346,7 @@ function renderMain() {
 
   // Title
   html += `<div>
-    <div class="section-title">${renderSubjectIcon(state.tab, state.selectedSubcat, subcat.icon)} ${escapeHtml(subcat.label)}</div>
+    <div class="section-title">${escapeHtml(subcat.label)}</div>
     <div class="section-subtitle">Créez directement une fiche objectif ${hasCategories ? 'à partir de cette catégorie' : 'pour ce domaine'}</div>
   </div>`;
 
@@ -1367,6 +1355,25 @@ function renderMain() {
       <div class="gen-title">
         <span class="step-badge">1</span>
         Préparer la fiche objectif
+      </div>
+
+      <div class="fields-row">
+        <div class="field-group">
+          <label class="field-label" for="niveauSelect">Niveau scolaire</label>
+          <select class="field-input" id="niveauSelect" onchange="state.niveau = this.value">
+            ${['1P/2P', '3P', '4P'].map(niveau => `
+              <option value="${niveau}" ${state.niveau === niveau ? 'selected' : ''}>${niveau}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="semestreSelect">Semestre</label>
+          <select class="field-input" id="semestreSelect" onchange="state.semestre = this.value">
+            ${['1', '2'].map(semestre => `
+              <option value="${semestre}" ${state.semestre === semestre ? 'selected' : ''}>Semestre ${semestre}</option>
+            `).join('')}
+          </select>
+        </div>
       </div>
 
       <div class="illustration-selector">
@@ -1613,7 +1620,7 @@ async function generatePDF() {
     doc.setFontSize(12);
     doc.text(`Prénom : ${state.eleve || ''}`, 25, 30.8);
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
-    doc.text('1P/2P - .... Semestre', 25, 40.0);
+    doc.text(`${state.niveau} - Semestre ${state.semestre}`, 25, 40.0);
 
     // Domaine et catégorie à gauche, illustration choisie à droite.
     const domainText = tab.label.toUpperCase();
