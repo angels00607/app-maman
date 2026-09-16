@@ -807,6 +807,12 @@
     .modal-box { padding: 28px 20px 22px; }
   }
 
+  .subject-icons { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; flex-shrink: 0; }
+  .subject-icon { width: 36px; height: 36px; object-fit: contain; background: white; border-radius: 5px; }
+  .tab-btn { display: inline-flex; align-items: center; gap: 8px; }
+  .cat-icon, .cat-btn.active .cat-icon { width: auto; min-width: 38px; height: auto; background: transparent; flex-shrink: 0; }
+  .cat-icon .subject-icon { width: 32px; height: 38px; }
+  .section-title .subject-icon { width: 48px; height: 52px; }
 </style>
 </head>
 <body>
@@ -1200,23 +1206,85 @@ function saveCustomData(type, domainKey, itemKey, item) {
 loadCustomData();
 
 const ILLUSTRATIONS = [
-  { label: 'Groupe sous un arbre', src: 'assets/illustrations/01-groupe-arbre.png' },
-  { label: 'Lecture', src: 'assets/illustrations/02-lecture.png' },
-  { label: 'Musique', src: 'assets/illustrations/03-musique.png' },
-  { label: 'Nombres', src: 'assets/illustrations/04-nombres.png' },
-  { label: 'Motricité', src: 'assets/illustrations/05-motricite.png' },
-  { label: 'Travail au bureau', src: 'assets/illustrations/06-travail-bureau.png' },
-  { label: 'La classe', src: 'assets/illustrations/07-classe.png' },
-  { label: 'Découverte de la nature', src: 'assets/illustrations/08-nature.png' },
-  { label: 'Relations entre élèves', src: 'assets/illustrations/09-relations.png' },
-  { label: 'Écriture', src: 'assets/illustrations/10-ecriture.png' },
-  { label: 'Arts visuels', src: 'assets/illustrations/11-arts.png' },
-  { label: 'Présenter un dessin', src: 'assets/illustrations/12-dessin.png' },
-  { label: 'Relation adulte-enfant', src: 'assets/illustrations/13-adulte-enfant.png' },
-  { label: 'Activités scolaires', src: 'assets/illustrations/14-ecole.png' },
-  { label: 'Visite au musée', src: 'assets/illustrations/15-musee.png' },
-  { label: 'Collaboration', src: 'assets/illustrations/16-collaboration.png' }
+  {
+    "label": "Écoute",
+    "src": "assets/icones-evaluation/ecoute.jpeg"
+  },
+  {
+    "label": "Production écrite / écriture",
+    "src": "assets/icones-evaluation/production-ecrite.jpeg"
+  },
+  {
+    "label": "Lecture",
+    "src": "assets/icones-evaluation/lecture.jpeg"
+  },
+  {
+    "label": "Production orale",
+    "src": "assets/icones-evaluation/production-orale.jpeg"
+  },
+  {
+    "label": "Maths",
+    "src": "assets/icones-evaluation/maths.jpeg"
+  },
+  {
+    "label": "Sciences de la nature",
+    "src": "assets/icones-evaluation/sciences-nature.jpeg"
+  },
+  {
+    "label": "Géographie",
+    "src": "assets/icones-evaluation/geographie.jpeg"
+  },
+  {
+    "label": "Histoire",
+    "src": "assets/icones-evaluation/histoire.jpeg"
+  },
+  {
+    "label": "Citoyenneté",
+    "src": "assets/icones-evaluation/citoyennete.jpeg"
+  },
+  {
+    "label": "Arts plastiques",
+    "src": "assets/icones-evaluation/arts-plastiques.jpeg"
+  },
+  {
+    "label": "Musique",
+    "src": "assets/icones-evaluation/musique.jpeg"
+  },
+  {
+    "label": "Corps et mouvement",
+    "src": "assets/icones-evaluation/corps-mouvement.jpeg"
+  },
+  {
+    "label": "Apprentissages vie scolaire",
+    "src": "assets/icones-evaluation/vie-scolaire.jpeg"
+  }
 ];
+
+const DOMAIN_ILLUSTRATIONS = {
+  transversal: [12], fr: [2], shs: [6], sciences: [5],
+  math: [4], mouvement: [11], arts: [9], musique: [10]
+};
+const CATEGORY_ILLUSTRATIONS = {
+  fr: { ecrit: [2, 1], oral: [0, 3], langue: [2], genres: [2], ecriture: [1], lecture_3p: [2] },
+  shs: { espace: [6], temps: [7], ethique: [8] }
+};
+
+function illustrationIndexes(domainKey, categoryKey) {
+  return CATEGORY_ILLUSTRATIONS[domainKey]?.[categoryKey] || DOMAIN_ILLUSTRATIONS[domainKey] || [];
+}
+
+function renderSubjectIcon(domainKey, categoryKey, fallback) {
+  const indexes = illustrationIndexes(domainKey, categoryKey);
+  if (!indexes.length) return escapeHtml(fallback);
+  return '<span class="subject-icons" aria-hidden="true">' + indexes.map(index =>
+    '<img class="subject-icon" src="' + ILLUSTRATIONS[index].src + '" alt="" />'
+  ).join('') + '</span>';
+}
+
+function selectDefaultIllustration() {
+  const [index = 0] = illustrationIndexes(state.tab, state.selectedSubcat);
+  state.illustration = ILLUSTRATIONS[index].src;
+}
 
 // ── STATE ──
 let state = {
@@ -1228,7 +1296,7 @@ let state = {
   activite: '',
   objectifs: '',
   observations: '',
-  illustration: ILLUSTRATIONS[0].src,
+  illustration: ILLUSTRATIONS[12].src,
 };
 
 // ── RENDER ──
@@ -1244,7 +1312,7 @@ function renderDomains() {
   document.documentElement.style.setProperty('--active-light', `${tab.color}18`);
   document.getElementById('domainTabs').innerHTML = Object.entries(DATA).map(([key, domain]) => `
     <button class="tab-btn ${state.tab === key ? 'active' : ''}" onclick="switchTab('${key}')">
-      ${escapeHtml(domain.icon)} ${escapeHtml(domain.label)}
+      ${renderSubjectIcon(key, null, domain.icon)} ${escapeHtml(domain.label)}
     </button>
   `).join('');
 }
@@ -1263,7 +1331,7 @@ function renderSidebar() {
     const isActive = state.selectedSubcat === key;
     html += `
       <button class="cat-btn ${isActive ? 'active' : ''}" onclick="selectCategory('${key}')">
-        <div class="cat-icon">${escapeHtml(cat.icon)}</div>
+        <div class="cat-icon">${renderSubjectIcon(state.tab, key, cat.icon)}</div>
         ${escapeHtml(cat.label)}
       </button>
     `;
@@ -1290,7 +1358,7 @@ function renderMain() {
 
   // Title
   html += `<div>
-    <div class="section-title">${escapeHtml(subcat.icon)} ${escapeHtml(subcat.label)}</div>
+    <div class="section-title">${renderSubjectIcon(state.tab, state.selectedSubcat, subcat.icon)} ${escapeHtml(subcat.label)}</div>
     <div class="section-subtitle">Créez directement une fiche objectif ${hasCategories ? 'à partir de cette catégorie' : 'pour ce domaine'}</div>
   </div>`;
 
@@ -1428,6 +1496,7 @@ function saveNewItem(event) {
     showToast('Catégorie ajoutée');
   }
 
+  selectDefaultIllustration();
   closeAddModal();
   render();
 }
@@ -1437,11 +1506,13 @@ function switchTab(tab) {
   state.photoDataUrl = null;
   const cats = Object.keys(DATA[tab].subcategories);
   state.selectedSubcat = cats[0];
+  selectDefaultIllustration();
   render();
 }
 
 function selectCategory(key) {
   state.selectedSubcat = key;
+  selectDefaultIllustration();
   state.photoDataUrl = null;
   render();
 }
@@ -1559,13 +1630,17 @@ async function generatePDF() {
     try {
       const illustrationDataUrl = await imageUrlToDataUrl(state.illustration);
       const illustrationSize = 30;
+      const imageProperties = doc.getImageProperties(illustrationDataUrl);
+      const imageScale = illustrationSize / Math.max(imageProperties.width, imageProperties.height);
+      const illustrationWidth = imageProperties.width * imageScale;
+      const illustrationHeight = imageProperties.height * imageScale;
       doc.addImage(
         illustrationDataUrl,
         'PNG',
-        157,
-        51,
-        illustrationSize,
-        illustrationSize,
+        157 + (illustrationSize - illustrationWidth) / 2,
+        51 + (illustrationSize - illustrationHeight) / 2,
+        illustrationWidth,
+        illustrationHeight,
         '',
         'FAST'
       );
