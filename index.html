@@ -1546,14 +1546,46 @@ function selectCategory(key) {
   render();
 }
 
-function handleFile(file) {
+async function normalizeUploadedPhoto(file) {
+  // iPad Safari: decode the EXIF orientation once, then export pixels without EXIF.
+  let source;
+  let objectUrl;
+  try {
+    if (typeof createImageBitmap === 'function') {
+      source = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } else {
+      objectUrl = URL.createObjectURL(file);
+      source = new Image();
+      await new Promise((resolve, reject) => {
+        source.onload = resolve;
+        source.onerror = reject;
+        source.src = objectUrl;
+      });
+    }
+    const width = source.width || source.naturalWidth;
+    const height = source.height || source.naturalHeight;
+    if (!width || !height) throw new Error('Dimensions invalides');
+    const scale = Math.min(1, 2400 / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } finally {
+    if (source && typeof source.close === 'function') source.close();
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function handleFile(file) {
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    state.photoDataUrl = e.target.result;
+  try {
+    state.photoDataUrl = await normalizeUploadedPhoto(file);
     render();
-  };
-  reader.readAsDataURL(file);
+  } catch (error) {
+    console.error('Impossible de préparer la photo', error);
+    showToast('Photo non prise en charge', '❌');
+  }
 }
 
 function handleDrop(e) {
@@ -1725,29 +1757,23 @@ async function generatePDF() {
     // Aucun cadre visible autour de la photo.
 
     try {
-      // Décoder puis réencoder sur canvas : applique l'orientation du navigateur
-      // et supprime les métadonnées EXIF pouvant faire pivoter le JPEG dans jsPDF.
-      const normalizedPhoto = await imageUrlToDataUrl(state.photoDataUrl);
+      // The uploaded photo is already EXIF-normalized. Use the exact same
+      // raster and dimensions for PDF layout and image insertion.
       const img = new Image();
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = normalizedPhoto;
+        img.src = state.photoDataUrl;
       });
-      if (!img.naturalWidth || !img.naturalHeight) throw new Error('Dimensions photo invalides');
-      const imgRatio = img.naturalWidth / img.naturalHeight;
-      const boxRatio = photoBoxW / photoBoxH;
-      let drawW, drawH;
-      if (imgRatio > boxRatio) {
-        drawW = photoBoxW - 1.4;
-        drawH = drawW / imgRatio;
-      } else {
-        drawH = photoBoxH - 1.4;
-        drawW = drawH * imgRatio;
-      }
+      const width = img.naturalWidth;
+      const height = img.naturalHeight;
+      if (!width || !height) throw new Error('Dimensions photo invalides');
+      const scale = Math.min((photoBoxW - 1.4) / width, (photoBoxH - 1.4) / height);
+      const drawW = width * scale;
+      const drawH = height * scale;
       const drawX = photoX + (photoBoxW - drawW) / 2;
       const drawY = photoY + (photoBoxH - drawH) / 2;
-      doc.addImage(normalizedPhoto, 'PNG', drawX, drawY, drawW, drawH, '', 'FAST');
+      doc.addImage(state.photoDataUrl, 'JPEG', drawX, drawY, drawW, drawH, '', 'FAST');
     } catch(e) {
       doc.setFontSize(12);
       doc.text('Photo', W / 2, photoY + 5.2, { align: 'center' });
