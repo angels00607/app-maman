@@ -1284,6 +1284,8 @@ let state = {
   date: new Date().toLocaleDateString('fr-FR'),
   activite: '',
   objectifs: '',
+  resultatObjectif: '',
+  aideActivite: '',
   observations: '',
   illustration: ILLUSTRATIONS[12].src,
 };
@@ -1360,7 +1362,7 @@ function renderMain() {
       <div class="fields-row">
         <div class="field-group">
           <label class="field-label" for="niveauSelect">Niveau scolaire</label>
-          <select class="field-input" id="niveauSelect" onchange="state.niveau = this.value">
+          <select class="field-input" id="niveauSelect" onchange="state.niveau = this.value; renderMain()">
             ${['1P/2P', '3P', '4P'].map(niveau => `
               <option value="${niveau}" ${state.niveau === niveau ? 'selected' : ''}>${niveau}</option>
             `).join('')}
@@ -1433,6 +1435,26 @@ function renderMain() {
             oninput="state.objectifs = this.value" />
         </div>
       </div>
+
+      ${['3P', '4P'].includes(state.niveau) ? `
+      <div class="fields-row">
+        <div class="field-group">
+          <label class="field-label">Objectif</label>
+          <select class="field-input" onchange="state.resultatObjectif = this.value">
+            <option value="" ${!state.resultatObjectif ? 'selected' : ''}>Non renseigné</option>
+            <option value="atteint" ${state.resultatObjectif === 'atteint' ? 'selected' : ''}>Atteint</option>
+            <option value="reprendre" ${state.resultatObjectif === 'reprendre' ? 'selected' : ''}>À reprendre</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Activité faite</label>
+          <select class="field-input" onchange="state.aideActivite = this.value">
+            <option value="" ${!state.aideActivite ? 'selected' : ''}>Non renseigné</option>
+            <option value="seul" ${state.aideActivite === 'seul' ? 'selected' : ''}>Seul(e)</option>
+            <option value="aide" ${state.aideActivite === 'aide' ? 'selected' : ''}>Avec aide</option>
+          </select>
+        </div>
+      </div>` : ''}
 
       <div class="fields-row">
         <div class="field-group full">
@@ -1620,6 +1642,7 @@ async function generatePDF() {
     doc.setFontSize(12);
     doc.text(`Prénom : ${state.eleve || ''}`, 25, 30.8);
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
+    if (['3P', '4P'].includes(state.niveau)) doc.text('Signature : __________________', 157, 37.5);
     doc.text(`${state.niveau} - Semestre ${state.semestre}`, 25, 40.0);
 
     // Domaine et catégorie à gauche, illustration choisie à droite.
@@ -1666,21 +1689,43 @@ async function generatePDF() {
     doc.text(`Activité : ${state.activite || ''}`, 25, 109.5);
     doc.text(`Objectif(s) : ${state.objectifs || ''}`, 25, 118.5);
 
-    // Grand cadre photo pointillé du modèle.
+    const niveauAvance = ['3P', '4P'].includes(state.niveau);
+    if (niveauAvance) {
+      const drawCheckbox = (x, y, checked) => {
+        doc.setLineWidth(0.3);
+        doc.rect(x, y - 3.2, 3.8, 3.8);
+        if (checked) {
+          doc.setLineWidth(0.55);
+          doc.line(x + 0.6, y - 2.6, x + 3.2, y);
+          doc.line(x + 3.2, y - 2.6, x + 0.6, y);
+        }
+      };
+      doc.setFontSize(11);
+      doc.text('Objectif :', 25, 127);
+      drawCheckbox(48, 127, state.resultatObjectif === 'atteint');
+      doc.text('Atteint', 54, 127);
+      drawCheckbox(83, 127, state.resultatObjectif === 'reprendre');
+      doc.text('À reprendre', 89, 127);
+      doc.text('Activité faite :', 25, 136);
+      drawCheckbox(62, 136, state.aideActivite === 'seul');
+      doc.text('Seul(e)', 68, 136);
+      drawCheckbox(100, 136, state.aideActivite === 'aide');
+      doc.text('Avec aide', 106, 136);
+    }
+
+    // Zone de placement sans bordure ; proportions originales conservées.
     const photoX = 48.82;
-    const photoY = 126;
+    const photoY = niveauAvance ? 143 : 126;
     const photoBoxW = 109.08;
-    const photoBoxH = 88.2;
-    doc.setLineWidth(0.35);
-    doc.setLineDashPattern([0.35, 0.35], 0);
-    doc.rect(photoX, photoY, photoBoxW, photoBoxH);
-    doc.setLineDashPattern([], 0);
+    const photoBoxH = niveauAvance ? 71.2 : 88.2;
+    // Aucun cadre visible autour de la photo.
 
     try {
       const mime = state.photoDataUrl.split(';')[0].split(':')[1];
       const fmt  = mime === 'image/png' ? 'PNG' : 'JPEG';
       const img = new Image();
       await new Promise(res => { img.onload = res; img.src = state.photoDataUrl; });
+      if (!img.naturalWidth || !img.naturalHeight) throw new Error('Dimensions photo invalides');
       const imgRatio = img.naturalWidth / img.naturalHeight;
       const boxRatio = photoBoxW / photoBoxH;
       let drawW, drawH;
@@ -1696,7 +1741,7 @@ async function generatePDF() {
       doc.addImage(state.photoDataUrl, fmt, drawX, drawY, drawW, drawH, '', 'FAST');
     } catch(e) {
       doc.setFontSize(12);
-      doc.text('Photo', W / 2, 131.2, { align: 'center' });
+      doc.text('Photo', W / 2, photoY + 5.2, { align: 'center' });
     }
 
     // Observations dans un encadré, à la place des lignes pointillées.
