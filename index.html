@@ -1642,7 +1642,11 @@ async function generatePDF() {
     doc.setFontSize(12);
     doc.text(`Prénom : ${state.eleve || ''}`, 25, 30.8);
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
-    if (['3P', '4P'].includes(state.niveau)) doc.text('Signature : __________________', 157, 37.5);
+    if (['3P', '4P'].includes(state.niveau)) {
+      doc.text('Signature :', 143, 39);
+      doc.setLineWidth(0.3);
+      doc.line(168, 39.5, 185, 39.5);
+    }
     doc.text(`${state.niveau} - Semestre ${state.semestre}`, 25, 40.0);
 
     // Domaine et catégorie à gauche, illustration choisie à droite.
@@ -1721,10 +1725,15 @@ async function generatePDF() {
     // Aucun cadre visible autour de la photo.
 
     try {
-      const mime = state.photoDataUrl.split(';')[0].split(':')[1];
-      const fmt  = mime === 'image/png' ? 'PNG' : 'JPEG';
+      // Décoder puis réencoder sur canvas : applique l'orientation du navigateur
+      // et supprime les métadonnées EXIF pouvant faire pivoter le JPEG dans jsPDF.
+      const normalizedPhoto = await imageUrlToDataUrl(state.photoDataUrl);
       const img = new Image();
-      await new Promise(res => { img.onload = res; img.src = state.photoDataUrl; });
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = normalizedPhoto;
+      });
       if (!img.naturalWidth || !img.naturalHeight) throw new Error('Dimensions photo invalides');
       const imgRatio = img.naturalWidth / img.naturalHeight;
       const boxRatio = photoBoxW / photoBoxH;
@@ -1738,7 +1747,7 @@ async function generatePDF() {
       }
       const drawX = photoX + (photoBoxW - drawW) / 2;
       const drawY = photoY + (photoBoxH - drawH) / 2;
-      doc.addImage(state.photoDataUrl, fmt, drawX, drawY, drawW, drawH, '', 'FAST');
+      doc.addImage(normalizedPhoto, 'PNG', drawX, drawY, drawW, drawH, '', 'FAST');
     } catch(e) {
       doc.setFontSize(12);
       doc.text('Photo', W / 2, photoY + 5.2, { align: 'center' });
