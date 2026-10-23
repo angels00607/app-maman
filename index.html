@@ -1676,8 +1676,6 @@ async function generatePDF() {
     doc.text(`Date : ${state.date || ''}`, 157, 30.8);
     if (['3P', '4P'].includes(state.niveau)) {
       doc.text('Signature :', 143, 39);
-      doc.setLineWidth(0.3);
-      doc.line(168, 39.5, 185, 39.5);
     }
     doc.text(`${state.niveau} - Semestre ${state.semestre}`, 25, 40.0);
 
