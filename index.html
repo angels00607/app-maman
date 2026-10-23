@@ -1464,6 +1464,7 @@ function renderMain() {
         </div>
       </div>
 
+      <button type="button" id="ipadPdfSave" hidden onclick="savePdfOnIpad()" style="width:100%;padding:14px;margin:8px 0;border:0;border-radius:12px;background:#1a56c4;color:white;font-size:16px;font-weight:700;">📥 Enregistrer le PDF sur l’iPad</button>
       <button class="gen-btn" onclick="generatePDF()" id="genBtn" ${!state.photoDataUrl ? 'disabled' : ''}>
         <span>📄</span> Générer le PDF
       </button>
@@ -1650,6 +1651,34 @@ async function imageUrlToDataUrl(url) {
   return canvas.toDataURL('image/png');
 }
 
+let pendingPdfFile = null;
+
+function downloadPdfFile(file) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function savePdfOnIpad() {
+  if (!pendingPdfFile) return;
+  // This handler runs directly from a tap, as required by iPadOS Web Share.
+  try {
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [pendingPdfFile] })) {
+      await navigator.share({ files: [pendingPdfFile], title: pendingPdfFile.name });
+      return;
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') return;
+    console.warn('Partage iPad indisponible, téléchargement classique', error);
+  }
+  downloadPdfFile(pendingPdfFile);
+}
+
 async function generatePDF() {
   const btn = document.getElementById('genBtn');
   if (!btn || !state.photoDataUrl) return;
@@ -1791,8 +1820,24 @@ async function generatePDF() {
     doc.text(observationLines, observationsX + 3, observationsY + 6, { lineHeightFactor: 1.3 });
 
     const safeName = (subcat?.label || tab.label).replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').replace(/\s+/g, '_');
-    doc.save(`fiche_objectif_${safeName}.pdf`);
-    showToast('PDF généré avec succès !', '✅');
+    const filename = `fiche_objectif_${safeName}.pdf`;
+    const pdfBlob = doc.output('blob');
+    pendingPdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+    const isIpad = /iPad/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIpad) {
+      // Async PDF creation has ended: sharing must be initiated by a NEW user tap.
+      // Keep a visible action instead of silently relying on Safari's download behavior.
+      const action = document.getElementById('ipadPdfSave');
+      if (action) {
+        action.hidden = false;
+        action.textContent = '📥 Enregistrer le PDF sur l’iPad';
+      }
+      showToast('PDF prêt : touchez Enregistrer le PDF', '✅');
+    } else {
+      downloadPdfFile(pendingPdfFile);
+      showToast('Téléchargement du PDF lancé !', '✅');
+    }
 
   } catch(err) {
     console.error(err);
