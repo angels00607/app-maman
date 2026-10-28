@@ -1431,8 +1431,8 @@ function renderMain() {
         </div>
         <div class="field-group">
           <label class="field-label">Objectif(s)</label>
-          <input class="field-input" type="text" placeholder="Indiquez les objectifs" value="${state.objectifs}"
-            oninput="state.objectifs = this.value" />
+          <textarea class="field-textarea" rows="5" placeholder="Indiquez les objectifs"
+            oninput="state.objectifs = this.value">${escapeHtml(state.objectifs)}</textarea>
         </div>
       </div>
 
@@ -1747,10 +1747,24 @@ async function generatePDF() {
       doc.text(categoryLines, headingX, 74.5, { lineHeightFactor: 1.1 });
     }
 
-    // Activité et objectifs.
-    doc.setFontSize(14);
-    doc.text(`Activité : ${state.activite || ''}`, 25, 109.5);
-    doc.text(`Objectif(s) : ${state.objectifs || ''}`, 25, 118.5);
+    // Activité et objectifs : retour automatique à la ligne dans l'encadré.
+    doc.setFontSize(12);
+    doc.text(`Activité : ${state.activite || ''}`, 25, 94);
+    doc.text('Objectif(s) :', 25, 101);
+    const objectifsX = 25;
+    const objectifsY = 104;
+    const objectifsW = 157.3;
+    const objectifsH = 19.5;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.35);
+    doc.rect(objectifsX, objectifsY, objectifsW, objectifsH);
+    doc.setFontSize(9);
+    let objectifLines = doc.splitTextToSize(state.objectifs || '', objectifsW - 6);
+    if (objectifLines.length > 5) {
+      objectifLines = objectifLines.slice(0, 5);
+      objectifLines[4] = objectifLines[4].replace(/[.,;:!?]*$/, '') + '…';
+    }
+    doc.text(objectifLines, objectifsX + 3, objectifsY + 4.1, { lineHeightFactor: 1.12 });
 
     const niveauAvance = ['3P', '4P'].includes(state.niveau);
     if (niveauAvance) {
