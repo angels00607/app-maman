@@ -1758,8 +1758,13 @@ async function generatePDF() {
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.35);
     doc.rect(objectifsX, objectifsY, objectifsW, objectifsH);
+    // Essayer d'abord une police réduite de 2 points avant de tronquer.
     doc.setFontSize(9);
     let objectifLines = doc.splitTextToSize(state.objectifs || '', objectifsW - 6);
+    if (objectifLines.length > 5) {
+      doc.setFontSize(7);
+      objectifLines = doc.splitTextToSize(state.objectifs || '', objectifsW - 6);
+    }
     if (objectifLines.length > 5) {
       objectifLines = objectifLines.slice(0, 5);
       objectifLines[4] = objectifLines[4].replace(/[.,;:!?]*$/, '') + '…';
